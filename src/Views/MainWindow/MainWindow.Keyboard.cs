@@ -40,6 +40,7 @@ public partial class MainWindow
         ["nextTab"] = "ctrl+shift+]",
         ["prevTab"] = "ctrl+shift+[",
         ["toggleTerminal"] = "ctrl+j",
+        ["syncCwd"] = "ctrl+shift+j",
         ["quit"] = "ctrl+q",
     };
 
@@ -273,6 +274,16 @@ public partial class MainWindow
         else if (IsShortcut("toggleTerminal", e))
         {
             ToggleTerminalPane();
+            e.Handled = true;
+        }
+        else if (IsShortcut("syncCwd", e))
+        {
+            // Set the active file pane to the built-in terminal's current
+            // folder. No-ops when no shell is running. Fires while focus is
+            // anywhere outside the terminal (the terminal-focused early return
+            // above gates it); from inside the terminal press focusFilePane
+            // (Ctrl+1) first, then this.
+            TerminalSyncCwd_Click(TerminalSyncCwdButton, new RoutedEventArgs());
             e.Handled = true;
         }
         else if (IsShortcut("quit", e))
