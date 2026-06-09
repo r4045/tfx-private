@@ -268,4 +268,132 @@ public partial class MainWindow
             SetStatus(Loc.F("Unpinned {0}", path));
         }
     }
+
+    // ─── Bookmarks (config.toml [[bookmarks]]) ────────────────────
+    // Grouped, collapsible sidebar entries declared in config.toml — separate
+    // from the GUI-managed pinned folders above. Group collapse state persists
+    // in settings.json; clicking a leaf navigates the active pane.
+
+    private void LoadBookmarks()
+    {
+        BookmarksTree.Items.Clear();
+        if (_config.Bookmarks.Count == 0)
+        {
+            BookmarksHeader.Visibility = Visibility.Collapsed;
+            BookmarksTree.Visibility = Visibility.Collapsed;
+            return;
+        }
+        BookmarksHeader.Visibility = Visibility.Visible;
+        BookmarksTree.Visibility = Visibility.Visible;
+
+        // Group by `group`, preserving first-seen order.
+        var order = new List<string>();
+        var byGroup = new Dictionary<string, List<Bookmark>>(StringComparer.Ordinal);
+        foreach (var b in _config.Bookmarks)
+        {
+            if (!byGroup.TryGetValue(b.Group, out var list))
+            {
+                list = [];
+                byGroup[b.Group] = list;
+                order.Add(b.Group);
+            }
+            list.Add(b);
+        }
+
+        foreach (var group in order)
+        {
+            var groupItem = new TreeViewItem
+            {
+                Header = group,
+                Tag = null,   // null Tag marks a group header (a leaf carries its path)
+                IsExpanded = !_settings.CollapsedBookmarkGroups.Contains(group, StringComparer.OrdinalIgnoreCase),
+            };
+            foreach (var b in byGroup[group])
+            {
+                var label = string.IsNullOrWhiteSpace(b.Label)
+                    ? Path.GetFileName(b.Path.TrimEnd('\\', '/'))
+                    : b.Label;
+                if (string.IsNullOrEmpty(label))
+                {
+                    label = b.Path;
+                }
+                groupItem.Items.Add(new TreeViewItem
+                {
+                    Header = label,
+                    Tag = b.Path,
+                    ToolTip = b.Path,
+                });
+            }
+            BookmarksTree.Items.Add(groupItem);
+        }
+    }
+
+    private void BookmarksTree_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        // Let the expander triangle toggle the group on its own.
+        if (IsWithinExpander(e.OriginalSource as DependencyObject))
+        {
+            return;
+        }
+        var item = BookmarkItemFromSource(e.OriginalSource as DependencyObject);
+        if (item is null)
+        {
+            return;
+        }
+        if (item.Tag is string path && item.Items.Count == 0)
+        {
+            // Leaf bookmark → navigate the active pane. Not existence-checked, so
+            // an offline share fails through the normal Navigate error path.
+            Navigate(_activeGrid, path, true);
+        }
+        else if (item.Tag is null && item.Items.Count > 0)
+        {
+            // Single click anywhere on a group header toggles it.
+            item.IsExpanded = !item.IsExpanded;
+        }
+    }
+
+    private void BookmarksGroup_ExpandedOrCollapsed(object sender, RoutedEventArgs e)
+    {
+        // Persist only group (parent) state. Groups carry a null Tag; leaf
+        // bookmarks carry their path and never expand.
+        if (e.OriginalSource is not TreeViewItem item || item.Tag is not null || item.Header is not string group)
+        {
+            return;
+        }
+        var collapsed = _settings.CollapsedBookmarkGroups;
+        var idx = collapsed.FindIndex(g => string.Equals(g, group, StringComparison.OrdinalIgnoreCase));
+        if (!item.IsExpanded && idx < 0)
+        {
+            collapsed.Add(group);
+            SaveSettings();
+        }
+        else if (item.IsExpanded && idx >= 0)
+        {
+            collapsed.RemoveAt(idx);
+            SaveSettings();
+        }
+    }
+
+    private static TreeViewItem? BookmarkItemFromSource(DependencyObject? source)
+    {
+        while (source is not null and not TreeViewItem)
+        {
+            source = VisualTreeHelper.GetParent(source);
+        }
+        return source as TreeViewItem;
+    }
+
+    private static bool IsWithinExpander(DependencyObject? source)
+    {
+        while (source is not null and not TreeViewItem)
+        {
+            if (source is System.Windows.Controls.Primitives.ToggleButton)
+            {
+                return true;
+            }
+            source = VisualTreeHelper.GetParent(source);
+        }
+        return false;
+    }
 }

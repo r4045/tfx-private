@@ -94,7 +94,10 @@ public partial class MainWindow : Window
         PerformanceTrace.SetEnabled(_settings.ShowPerformanceLogs);
         InitializeFileColumns();
         LoadPinned();
+        LoadBookmarks();
         FolderTree.AddHandler(TreeViewItem.ExpandedEvent, new RoutedEventHandler(FolderTree_Expanded));
+        BookmarksTree.AddHandler(TreeViewItem.ExpandedEvent, new RoutedEventHandler(BookmarksGroup_ExpandedOrCollapsed));
+        BookmarksTree.AddHandler(TreeViewItem.CollapsedEvent, new RoutedEventHandler(BookmarksGroup_ExpandedOrCollapsed));
         LoadDrives();
 
         _suspendSettingsSave = true;
@@ -313,6 +316,7 @@ public partial class MainWindow : Window
         MaximizeRestoreButton.ToolTip = Loc.T("Maximize / restore");
         CloseButton.ToolTip = Loc.T("Close");
         PinnedHeader.Text = Loc.T("PINNED");
+        BookmarksHeader.Text = Loc.T("BOOKMARKS");
         FoldersHeader.Text = Loc.T("FOLDERS");
     }
 

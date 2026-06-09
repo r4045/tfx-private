@@ -20,6 +20,7 @@ public sealed class AppConfig
     public Dictionary<string, string> OpenWith { get; } = new(StringComparer.OrdinalIgnoreCase);
     public StartupConfig Startup { get; } = new();
     public List<UserCommand> Commands { get; } = [];
+    public List<Bookmark> Bookmarks { get; } = [];
     public List<string> Errors { get; } = [];
 
     public static AppConfig LoadOrCreate(string path)
@@ -50,6 +51,8 @@ public sealed class AppConfig
 
         // The current [[commands]] array-table entry being filled, if any.
         UserCommand? command = null;
+        // The current [[bookmarks]] array-table entry being filled, if any.
+        Bookmark? bookmark = null;
 
         var lines = toml.Replace("\r\n", "\n").Split('\n');
         for (var lineIndex = 0; lineIndex < lines.Length; lineIndex++)
@@ -90,10 +93,18 @@ public sealed class AppConfig
                 {
                     command = new UserCommand();
                     config.Commands.Add(command);
+                    bookmark = null;
+                }
+                else if (section.Equals("bookmarks", StringComparison.OrdinalIgnoreCase))
+                {
+                    bookmark = new Bookmark();
+                    config.Bookmarks.Add(bookmark);
+                    command = null;
                 }
                 else
                 {
                     command = null;
+                    bookmark = null;
                     config.Errors.Add($"Unknown array section: {line}");
                 }
                 continue;
@@ -103,6 +114,7 @@ public sealed class AppConfig
             {
                 section = line[1..^1].Trim();
                 command = null;
+                bookmark = null;
                 continue;
             }
 
@@ -185,6 +197,12 @@ public sealed class AppConfig
                         ParseCommand(config, command, key, value);
                     }
                     break;
+                case "bookmarks":
+                    if (bookmark is not null)
+                    {
+                        ParseBookmark(config, bookmark, key, value);
+                    }
+                    break;
             }
         }
 
@@ -196,6 +214,24 @@ public sealed class AppConfig
             {
                 config.Errors.Add("Ignored a [[commands]] entry missing name or run.");
                 config.Commands.RemoveAt(i);
+            }
+        }
+
+        // Drop bookmarks without a path; expand ~ / %VARS% and default a missing
+        // group name so every bookmark lands under some header.
+        for (var i = config.Bookmarks.Count - 1; i >= 0; i--)
+        {
+            var b = config.Bookmarks[i];
+            if (string.IsNullOrWhiteSpace(b.Path))
+            {
+                config.Errors.Add("Ignored a [[bookmarks]] entry missing path.");
+                config.Bookmarks.RemoveAt(i);
+                continue;
+            }
+            b.Path = ExpandUserPath(b.Path);
+            if (string.IsNullOrWhiteSpace(b.Group))
+            {
+                b.Group = "Bookmarks";
             }
         }
 
@@ -392,6 +428,32 @@ public sealed class AppConfig
         {
             if (TryParseString(value, out var sh)) command.Shell = sh;
             else config.Errors.Add($"Invalid command shell: {value}");
+        }
+    }
+
+    /// <summary>
+    /// Parses one <c>key = value</c> line inside a <c>[[bookmarks]]</c> entry.
+    /// Recognized keys: group (sidebar header), label / name (display text;
+    /// defaults to the folder name), path (folder or UNC share — not checked for
+    /// existence so offline network shares still appear).
+    /// </summary>
+    private static void ParseBookmark(AppConfig config, Bookmark bookmark, string key, string value)
+    {
+        if (key.Equals("group", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryParseString(value, out var group)) bookmark.Group = group;
+            else config.Errors.Add($"Invalid bookmark group: {value}");
+        }
+        else if (key.Equals("label", StringComparison.OrdinalIgnoreCase) ||
+                 key.Equals("name", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryParseString(value, out var label)) bookmark.Label = label;
+            else config.Errors.Add($"Invalid bookmark label: {value}");
+        }
+        else if (key.Equals("path", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryParseString(value, out var path)) bookmark.Path = path;
+            else config.Errors.Add($"Invalid bookmark path: {value}");
         }
     }
 
@@ -756,6 +818,7 @@ public sealed class AppConfig
         nextTab = "ctrl+shift+]"
         prevTab = "ctrl+shift+["
         toggleTerminal = "ctrl+j"
+        syncCwd = "ctrl+shift+j"
         quit = "ctrl+q"
 
         # Startup layout:
@@ -804,6 +867,21 @@ public sealed class AppConfig
         # requireGit = true    # only inside a Git working copy
         # terminal = true
         # shortcut = "ctrl+shift+p"   # optional keyboard shortcut
+        #
+        # Sidebar bookmarks: grouped, collapsible, and version-controllable
+        # (unlike the GUI pinned folders, which live in settings.json). Entries
+        # sharing a group appear under one collapsible header in file order.
+        # Paths are NOT existence-checked, so offline network shares still show
+        # up; ~ and %VARS% are expanded. label / group are optional (group
+        # defaults to "Bookmarks", label to the folder name).
+        # [[bookmarks]]
+        # group = "Radar"
+        # label = "proc source"
+        # path = "C:\\work\\radar\\radar-cband-proc"
+        # [[bookmarks]]
+        # group = "Radar"
+        # label = "QNAP share"
+        # path = "\\\\qnap-host\\share\\radar"
         """;
 }
 
@@ -895,6 +973,26 @@ public sealed class UserCommand
     /// their own executable).
     /// </summary>
     public string? Shell { get; set; }
+}
+
+/// <summary>
+/// A bookmarked folder from a <c>[[bookmarks]]</c> entry, shown in the sidebar
+/// under its <see cref="Group"/> header. Unlike the GUI-managed pinned folders
+/// (settings.json), bookmarks are declared in config.toml so they can be
+/// version-controlled. The path is not existence-checked at load time, so an
+/// offline network share still appears (clicking it fails through the normal
+/// navigation error path).
+/// </summary>
+public sealed class Bookmark
+{
+    /// <summary>Sidebar group header. Defaults to "Bookmarks" when omitted.</summary>
+    public string Group { get; set; } = "";
+
+    /// <summary>Display name. Empty = show the folder name from <see cref="Path"/>.</summary>
+    public string Label { get; set; } = "";
+
+    /// <summary>Folder path or UNC share. Supports ~ and %VARS% (expanded at load).</summary>
+    public string Path { get; set; } = "";
 }
 
 public readonly record struct AppShortcut(ModifierKeys Modifiers, Key Key)

@@ -34,6 +34,9 @@ public sealed class AppSettings
     public int LeftActiveTab { get; set; }
     public int RightActiveTab { get; set; }
     public List<string> PinnedFolders { get; set; } = [];
+    // Bookmark groups (config.toml [[bookmarks]]) that are collapsed in the
+    // sidebar. Groups not listed here default to expanded.
+    public List<string> CollapsedBookmarkGroups { get; set; } = [];
     public string TerminalCommand { get; set; } = "";
     public string TerminalArguments { get; set; } = "";
 
