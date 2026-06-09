@@ -393,14 +393,37 @@ public partial class MainWindow : Window
 
     private void ApplyConfigTheme()
     {
-        if (!string.IsNullOrWhiteSpace(_config.FontUi))
+        // ── Fonts ─────────────────────────────────────────────────────────
+        // Three groups, each falling back down the chain when unset:
+        //   system                       → window default; sidebar, tabs,
+        //                                   status bar and toolbar inherit it
+        //   pane    (= pane ?? system)    → file listings + path bars
+        //   preview (= preview ?? pane)   → text / CSV preview pane
+        // (The built-in terminal is themed separately via [terminal].)
+        if (!string.IsNullOrWhiteSpace(_config.FontSystem))
         {
-            FontFamily = new FontFamily(_config.FontUi);
+            FontFamily = new FontFamily(_config.FontSystem);
+        }
+        if (_config.FontSystemSize is { } systemSize)
+        {
+            FontSize = systemSize;
         }
 
-        if (_config.FontSize is { } fontSize)
+        var paneFont = _config.FontPane ?? _config.FontSystem;
+        var paneSize = _config.FontPaneSize ?? _config.FontSystemSize;
+        ApplyListingFont(paneFont, paneSize);
+
+        var previewFont = _config.FontPreview ?? paneFont;
+        if (!string.IsNullOrWhiteSpace(previewFont))
         {
-            FontSize = fontSize;
+            var preview = new FontFamily(previewFont);
+            TextPreview.FontFamily = preview;
+            CsvPreview.FontFamily = preview;
+        }
+        if ((_config.FontPreviewSize ?? paneSize) is { } previewSize)
+        {
+            TextPreview.FontSize = previewSize;
+            CsvPreview.FontSize = previewSize;
         }
 
         var backgroundOpacity = OpacityToken("background", 1.0);
@@ -444,6 +467,37 @@ public partial class MainWindow : Window
         };
 
         WindowTheme.Apply(this);
+    }
+
+    /// <summary>
+    /// Applies the pane font/size to both file listings (DataGrid + icon view)
+    /// and both path bars. Rows and the path-bar crumbs/edit box inherit
+    /// FontFamily / FontSize from these controls once their XAML hardcoded
+    /// fonts are removed, so setting it here overrides the inherited system
+    /// font. Null leaves the inherited value untouched.
+    /// </summary>
+    private void ApplyListingFont(string? fontName, double? size)
+    {
+        if (!string.IsNullOrWhiteSpace(fontName))
+        {
+            var family = new FontFamily(fontName);
+            LeftGrid.FontFamily = family;
+            RightGrid.FontFamily = family;
+            LeftIconView.FontFamily = family;
+            RightIconView.FontFamily = family;
+            LeftPathBar.FontFamily = family;
+            RightPathBar.FontFamily = family;
+        }
+
+        if (size is { } value)
+        {
+            LeftGrid.FontSize = value;
+            RightGrid.FontSize = value;
+            LeftIconView.FontSize = value;
+            RightIconView.FontSize = value;
+            LeftPathBar.FontSize = value;
+            RightPathBar.FontSize = value;
+        }
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

@@ -10,9 +10,12 @@ public sealed class AppConfig
 {
     public const int SupportedVersion = 1;
 
-    public string? FontUi { get; private set; }
-    public string? FontMono { get; private set; }
-    public double? FontSize { get; private set; }
+    public string? FontSystem { get; private set; }
+    public double? FontSystemSize { get; private set; }
+    public string? FontPane { get; private set; }
+    public double? FontPaneSize { get; private set; }
+    public string? FontPreview { get; private set; }
+    public double? FontPreviewSize { get; private set; }
     public Dictionary<string, Color> Colors { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, double> Opacity { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, AppShortcut> Shortcuts { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -245,15 +248,28 @@ public sealed class AppConfig
 
     private static void ParseFont(AppConfig config, string key, string value)
     {
-        if (key.Equals("size", StringComparison.OrdinalIgnoreCase))
+        // Size keys are numeric; family keys are quoted strings.
+        if (key.Equals("systemSize", StringComparison.OrdinalIgnoreCase) ||
+            key.Equals("paneSize", StringComparison.OrdinalIgnoreCase) ||
+            key.Equals("previewSize", StringComparison.OrdinalIgnoreCase))
         {
-            if (TryParseDouble(value, out var size) && size is >= 8 and <= 40)
+            if (!TryParseDouble(value, out var size) || size is < 8 or > 40)
             {
-                config.FontSize = size;
+                config.Errors.Add($"Invalid font size for {key}: {value}");
+                return;
+            }
+
+            if (key.Equals("systemSize", StringComparison.OrdinalIgnoreCase))
+            {
+                config.FontSystemSize = size;
+            }
+            else if (key.Equals("paneSize", StringComparison.OrdinalIgnoreCase))
+            {
+                config.FontPaneSize = size;
             }
             else
             {
-                config.Errors.Add($"Invalid font size: {value}");
+                config.FontPreviewSize = size;
             }
             return;
         }
@@ -264,13 +280,23 @@ public sealed class AppConfig
             return;
         }
 
-        if (key.Equals("ui", StringComparison.OrdinalIgnoreCase))
+        if (key.Equals("system", StringComparison.OrdinalIgnoreCase))
         {
-            config.FontUi = ResolveFontAlias(family, ui: true);
+            config.FontSystem = ResolveFontAlias(family, ui: true);
         }
-        else if (key.Equals("mono", StringComparison.OrdinalIgnoreCase))
+        else if (key.Equals("pane", StringComparison.OrdinalIgnoreCase))
         {
-            config.FontMono = ResolveFontAlias(family, ui: false);
+            config.FontPane = ResolveFontAlias(family, ui: false);
+        }
+        else if (key.Equals("preview", StringComparison.OrdinalIgnoreCase))
+        {
+            config.FontPreview = ResolveFontAlias(family, ui: false);
+        }
+        else
+        {
+            // Catches stale keys from the old schema (ui / mono / size) so the
+            // user gets a hint instead of a silently ignored setting.
+            config.Errors.Add($"Unknown [font] key: {key}");
         }
     }
 
@@ -781,9 +807,13 @@ public sealed class AppConfig
         version = 1
 
         [font]
-        ui = "system"
-        mono = "monospace"
-        size = 13
+        system = "system"       # sidebar (bookmarks / folder tree / pinned), tabs, status bar, toolbar
+        systemSize = 13
+        pane = "monospace"      # file listing rows + path bar; omit to follow `system`
+        paneSize = 13
+        # preview = "monospace" # text & CSV preview pane; omit to follow `pane`
+        # previewSize = 13      # omit to follow `paneSize`
+        # The built-in terminal has its own font: see [terminal] font / fontSize below.
 
         # Windows-native shortcuts.
         [shortcuts]
