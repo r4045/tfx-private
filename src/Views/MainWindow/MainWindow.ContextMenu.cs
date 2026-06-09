@@ -220,6 +220,21 @@ public partial class MainWindow
         };
         menu.Items.Add(pin);
 
+        var bookmarkTargetIsDir = oneSelected && selection[0].IsDirectory && !ArchivePath.Contains(selection[0].FullPath);
+        var addBookmark = new MenuItem
+        {
+            Header = Loc.T("Add to bookmarks..."),
+            IsEnabled = bookmarkTargetIsDir,
+        };
+        addBookmark.Click += (_, _) =>
+        {
+            if (bookmarkTargetIsDir)
+            {
+                AddBookmarkForPath(selection[0].FullPath);
+            }
+        };
+        menu.Items.Add(addBookmark);
+
         menu.Items.Add(new Separator());
 
         var cut = new MenuItem { Header = Loc.T("Cut"), InputGestureText = ShortcutText("cutItems"), IsEnabled = hasSelection && writableContext };

@@ -35,11 +35,13 @@ public partial class MainWindow : Window
     private readonly List<FileColumnDefinition> _fileColumns = [];
     private readonly string _settingsPath;
     private readonly string _configPath;
+    private readonly string _bookmarksPath;
     private Brush _activeBrush = new SolidColorBrush(Color.FromRgb(30, 37, 43));
     private Brush _inactiveBrush = new SolidColorBrush(Color.FromRgb(23, 27, 31));
 
     private AppSettings _settings = new();
     private AppConfig _config = new();
+    private BookmarkStore _bookmarks = new();
     private readonly Dictionary<string, AppShortcut> _shortcuts = new(StringComparer.OrdinalIgnoreCase);
     private DataGrid _activeGrid;
     private Popup? _columnsPopup;
@@ -87,6 +89,7 @@ public partial class MainWindow : Window
         Directory.CreateDirectory(appData);
         _settingsPath = Path.Combine(appData, "settings.json");
         _configPath = Path.Combine(appData, "config.toml");
+        _bookmarksPath = Path.Combine(appData, "bookmarks.json");
 
         LoadSettings();
         LoadConfig();
