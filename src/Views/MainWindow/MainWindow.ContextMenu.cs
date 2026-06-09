@@ -82,7 +82,79 @@ public partial class MainWindow
             return;
         }
 
+        // Default right-click shows the native Windows shell menu; Shift+right-
+        // click shows the in-app TFX menu. The shell menu runs a modal native
+        // tracking loop, so defer it out of this input event to avoid running
+        // it re-entrantly inside WPF's context-menu sequence.
+        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            e.Handled = true;
+            Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Input,
+                (Action)(() => ShowShellContextMenuOrFallback(grid, grid)));
+            return;
+        }
+
         grid.ContextMenu = BuildGridContextMenu(grid);
+    }
+
+    /// <summary>
+    /// Shows the native Windows shell context menu for the current selection.
+    /// Falls back to the in-app menu on <paramref name="host"/> when the shell
+    /// menu can't be shown — no selection (empty-area right-click), virtual
+    /// archive paths, or any shell failure. <paramref name="grid"/> builds the
+    /// fallback menu.
+    /// </summary>
+    private void ShowShellContextMenuOrFallback(Control host, DataGrid grid)
+    {
+        // The right-button-down handler primed a possible right-drag. The shell
+        // menu's modal loop swallows the right-button-up, so WPF can be left
+        // thinking the button is still down — clearing the pending drag here
+        // stops a stray move after the menu closes from dragging the item.
+        ClearPendingFileDrag();
+
+        var hwnd = new WindowInteropHelper(this).Handle;
+        var currentPath = GetCurrentPath(grid);
+        var inArchive = ArchivePath.Contains(currentPath);
+
+        var selection = ActiveSelectedItems()
+            .Where(i => !i.IsParent && !ArchivePath.Contains(i.FullPath))
+            .Select(i => i.FullPath)
+            .ToArray();
+
+        bool shown;
+        bool invoked;
+        if (selection.Length > 0)
+        {
+            shown = ShellContextMenu.Show(hwnd, selection, extendedVerbs: false, out invoked);
+        }
+        else if (!inArchive)
+        {
+            // Empty-area right-click → the folder-background shell menu (New,
+            // Paste, View, ...). Archive folders aren't shell items, so those
+            // fall through to the in-app menu below.
+            shown = ShellContextMenu.ShowForFolderBackground(hwnd, currentPath, extendedVerbs: false, out invoked);
+        }
+        else
+        {
+            shown = false;
+            invoked = false;
+        }
+
+        if (shown)
+        {
+            if (invoked)
+            {
+                Reload(LeftGrid);
+                Reload(RightGrid);
+            }
+            return;
+        }
+
+        var menu = BuildGridContextMenu(grid);
+        host.ContextMenu = menu;
+        menu.PlacementTarget = host;
+        menu.IsOpen = true;
     }
 
     private ContextMenu BuildGridContextMenu(DataGrid grid)

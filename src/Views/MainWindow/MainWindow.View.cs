@@ -178,6 +178,17 @@ public partial class MainWindow
         }
 
         SyncIconSelectionToGrid(lb);
+
+        // Default right-click → native shell menu; Shift+right-click → in-app menu.
+        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            e.Handled = true;
+            Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Input,
+                (Action)(() => ShowShellContextMenuOrFallback(lb, SideOf(lb))));
+            return;
+        }
+
         lb.ContextMenu = BuildGridContextMenu(SideOf(lb));
     }
 
