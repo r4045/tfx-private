@@ -131,6 +131,15 @@ public partial class MainWindow
         var itemContainer = FindVisualAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (itemContainer?.Content is not FileItem item)
         {
+            // Double-click on the empty area of the icon view navigates to the
+            // parent folder (same as Backspace / Alt+Up). UpdateActivePane was
+            // already called above, so NavigateParent acts on this pane.
+            if (e.ClickCount == 2)
+            {
+                NavigateParent();
+                e.Handled = true;
+                return;
+            }
             BeginRubberBandSelection(null, lb, e);
             return;
         }

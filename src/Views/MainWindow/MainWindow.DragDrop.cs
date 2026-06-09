@@ -42,6 +42,15 @@ public partial class MainWindow
         var row = FindVisualAncestor<DataGridRow>(e.OriginalSource as DependencyObject);
         if (row?.Item is not FileItem item)
         {
+            // Double-click on the empty area of the listing navigates to the
+            // parent folder (same as Backspace / Alt+Up). UpdateActivePane was
+            // already called above, so NavigateParent acts on this pane.
+            if (e.ClickCount == 2)
+            {
+                NavigateParent();
+                e.Handled = true;
+                return;
+            }
             BeginRubberBandSelection(grid, null, e);
             return;
         }
