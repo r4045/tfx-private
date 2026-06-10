@@ -43,6 +43,7 @@ public partial class MainWindow
         ["syncCwd"] = "ctrl+shift+j",
         ["quit"] = "ctrl+q",
         ["changeMoveMode"] = "f1",
+        ["openExplorer"] = "ctrl+shift+o",
     };
 
     private bool InArchiveContext => ArchivePath.Contains(GetCurrentPath(_activeGrid));
@@ -218,6 +219,11 @@ public partial class MainWindow
         else if (IsShortcut("openTerminal", e))
         {
             if (!InArchiveContext) OpenTerminal();
+            e.Handled = true;
+        }
+        else if (IsShortcut("openExplorer", e))
+        {
+            OpenCurrentFolderInExplorer();
             e.Handled = true;
         }
         else if (IsShortcut("toggleHidden", e))

@@ -58,6 +58,40 @@ public partial class MainWindow
         Process.Start(new ProcessStartInfo(explorerExe, argument) { UseShellExecute = true });
     }
 
+    /// <summary>
+    /// Opens the active pane's current folder in a new Windows Explorer window.
+    /// Unlike <see cref="RevealInExplorer"/> this opens the folder itself and
+    /// selects nothing. In an archive view it falls back to the real folder that
+    /// contains the archive file (the archive's inner path isn't a shell
+    /// location Explorer can open).
+    /// </summary>
+    private void OpenCurrentFolderInExplorer()
+    {
+        var currentPath = GetCurrentPath(_activeGrid);
+
+        var folder = ArchivePath.TryParse(currentPath, out var archive, out _)
+            ? System.IO.Path.GetDirectoryName(archive) ?? ""
+            : currentPath;
+
+        if (string.IsNullOrEmpty(folder) || !System.IO.Directory.Exists(folder))
+        {
+            return;
+        }
+
+        // Invoke explorer.exe by its absolute path in the Windows directory so we
+        // never race an explorer.exe planted on PATH / in the CWD.
+        var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        var explorerExe = System.IO.Path.Combine(windowsDir, "explorer.exe");
+        try
+        {
+            Process.Start(new ProcessStartInfo(explorerExe, $"\"{folder}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            SetStatus(Loc.F("Failed to open Explorer: {0}", ex.Message));
+        }
+    }
+
     private void ToggleHidden()
     {
         ShowHidden = !ShowHidden;
