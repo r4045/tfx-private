@@ -44,6 +44,7 @@ public partial class MainWindow
         ["quit"] = "ctrl+q",
         ["changeMoveMode"] = "f1",
         ["openExplorer"] = "ctrl+shift+o",
+        ["moveClipboard"] = "ctrl+shift+v",
     };
 
     private bool InArchiveContext => ArchivePath.Contains(GetCurrentPath(_activeGrid));
@@ -224,6 +225,11 @@ public partial class MainWindow
         else if (IsShortcut("openExplorer", e))
         {
             OpenCurrentFolderInExplorer();
+            e.Handled = true;
+        }
+        else if (IsShortcut("moveClipboard", e))
+        {
+            MoveToClipboardPath();
             e.Handled = true;
         }
         else if (IsShortcut("toggleHidden", e))

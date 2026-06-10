@@ -92,6 +92,72 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Navigates the active pane to a path taken from the clipboard. Prefers a
+    /// text path (e.g. TFX's "Copy current path", or a path copied from
+    /// elsewhere); falls back to the first entry of a file-drop list (files
+    /// copied in Explorer). A folder is opened directly; a file opens its parent
+    /// folder with the file selected.
+    /// </summary>
+    private void MoveToClipboardPath()
+    {
+        var raw = TryGetClipboardPath();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            SetStatus(Loc.T("No path on the clipboard"));
+            return;
+        }
+
+        var path = raw.Trim().Trim('"');
+
+        if (System.IO.Directory.Exists(path))
+        {
+            Navigate(_activeGrid, path, true, "..");
+            return;
+        }
+        if (System.IO.File.Exists(path))
+        {
+            var dir = System.IO.Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir) && System.IO.Directory.Exists(dir))
+            {
+                Navigate(_activeGrid, dir, true, System.IO.Path.GetFileName(path));
+                return;
+            }
+        }
+        SetStatus(Loc.F("Path not found: {0}", path));
+    }
+
+    private static string? TryGetClipboardPath()
+    {
+        try
+        {
+            if (Clipboard.ContainsText())
+            {
+                var text = Clipboard.GetText();
+                // Use the first non-empty line, in case several were copied.
+                var firstLine = text?.Split('\n', '\r').FirstOrDefault(l => !string.IsNullOrWhiteSpace(l));
+                if (!string.IsNullOrWhiteSpace(firstLine))
+                {
+                    return firstLine;
+                }
+            }
+            if (Clipboard.ContainsFileDropList())
+            {
+                var files = Clipboard.GetFileDropList();
+                if (files.Count > 0)
+                {
+                    return files[0];
+                }
+            }
+        }
+        catch
+        {
+            // The clipboard can throw if another process holds it open; treat
+            // as empty.
+        }
+        return null;
+    }
+
     private void ToggleHidden()
     {
         ShowHidden = !ShowHidden;
