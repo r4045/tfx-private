@@ -31,7 +31,6 @@ public partial class MainWindow : Window
     public ObservableCollection<FileItem> LeftItems { get; } = [];
     public ObservableCollection<FileItem> RightItems { get; } = [];
 
-    private readonly ObservableCollection<string> _pinned = [];
     private readonly List<FileColumnDefinition> _fileColumns = [];
     private readonly string _settingsPath;
     private readonly string _configPath;
@@ -96,7 +95,6 @@ public partial class MainWindow : Window
         ApplyLocalization();
         PerformanceTrace.SetEnabled(_settings.ShowPerformanceLogs);
         InitializeFileColumns();
-        LoadPinned();
         LoadBookmarks();
         FolderTree.AddHandler(TreeViewItem.ExpandedEvent, new RoutedEventHandler(FolderTree_Expanded));
         BookmarksTree.AddHandler(TreeViewItem.ExpandedEvent, new RoutedEventHandler(BookmarksGroup_ExpandedOrCollapsed));
@@ -296,7 +294,6 @@ public partial class MainWindow : Window
         BackButton.ToolTip = Loc.F("Back ({0})", ShortcutText("goBack"));
         ForwardButton.ToolTip = Loc.F("Forward ({0})", ShortcutText("goForward"));
         ParentButton.ToolTip = Loc.F("Up ({0} / Backspace)", ShortcutText("goUp"));
-        TogglePinButton.ToolTip = Loc.T("Pin / unpin current folder");
         FocusSearchButton.ToolTip = Loc.F("Focus search ({0})", ShortcutText("focusSearch"));
         ViewModeButton.ToolTip = Loc.T("Switch view mode");
         HiddenButton.ToolTip = Loc.F("Toggle hidden files ({0})", ShortcutText("toggleHidden"));
@@ -318,7 +315,6 @@ public partial class MainWindow : Window
         MinimizeButton.ToolTip = Loc.T("Minimize");
         MaximizeRestoreButton.ToolTip = Loc.T("Maximize / restore");
         CloseButton.ToolTip = Loc.T("Close");
-        PinnedHeader.Text = Loc.T("PINNED");
         BookmarksHeader.Text = Loc.T("BOOKMARKS");
         FoldersHeader.Text = Loc.T("FOLDERS");
     }
@@ -667,7 +663,6 @@ public partial class MainWindow : Window
         _settings.ShowPreview = showPreview;
         _settings.ShowSplit = showSplit;
         _settings.ShowHidden = ShowHidden;
-        _settings.PinnedFolders = _pinned.ToList();
         _settings.VisibleFileColumns = _fileColumns
             .Where(column => column.Left.Visibility == Visibility.Visible)
             .Select(column => column.Id)

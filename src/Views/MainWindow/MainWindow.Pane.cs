@@ -61,7 +61,6 @@ public partial class MainWindow
         UpdatePathText();
         QueueFolderTreeSyncToActivePane();
         UpdateGitBranchText();
-        SyncPinnedSelectionToActivePane();
     }
 
     private void Grid_SelectionChanged(object sender, SelectionChangedEventArgs e)

@@ -194,32 +194,6 @@ public partial class MainWindow
         reveal.Click += (_, _) => RevealInExplorer();
         menu.Items.Add(reveal);
 
-        var pinTargetIsDir = oneSelected && selection[0].IsDirectory && !ArchivePath.Contains(selection[0].FullPath);
-        var pinTargetPath = pinTargetIsDir ? selection[0].FullPath : null;
-        var pinAlreadyPinned = pinTargetPath != null && _pinned.Contains(pinTargetPath);
-        var pin = new MenuItem
-        {
-            Header = Loc.T(pinAlreadyPinned ? "Unpin" : "Pin"),
-            IsEnabled = pinTargetIsDir,
-        };
-        pin.Click += (_, _) =>
-        {
-            if (pinTargetPath == null)
-            {
-                return;
-            }
-            if (pinAlreadyPinned)
-            {
-                UnpinPinnedFolder(pinTargetPath);
-            }
-            else
-            {
-                _pinned.Add(pinTargetPath);
-                SetStatus(Loc.F("Pinned {0}", pinTargetPath));
-            }
-        };
-        menu.Items.Add(pin);
-
         var bookmarkTargetIsDir = oneSelected && selection[0].IsDirectory && !ArchivePath.Contains(selection[0].FullPath);
         var addBookmark = new MenuItem
         {
