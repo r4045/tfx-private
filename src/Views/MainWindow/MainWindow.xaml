@@ -227,7 +227,7 @@
             <Border x:Name="SidebarBorder" Grid.Column="0" Background="{DynamicResource TfxPanel}" BorderBrush="{DynamicResource TfxBorder}" BorderThickness="0,0,1,0">
                 <DockPanel>
                     <TextBlock x:Name="BookmarksHeader" DockPanel.Dock="Top" Text="BOOKMARKS" Foreground="{DynamicResource TfxMuted}" Margin="10,4,10,4" Visibility="Collapsed" />
-                    <TreeView x:Name="BookmarksTree" DockPanel.Dock="Top" Visibility="Collapsed" MaxHeight="260" Background="{DynamicResource TfxPanel}" Foreground="{DynamicResource TfxForeground}" BorderThickness="0" Padding="4,0,4,6" ScrollViewer.HorizontalScrollBarVisibility="Disabled" PreviewMouseLeftButtonUp="BookmarksTree_PreviewMouseLeftButtonUp" PreviewMouseRightButtonDown="BookmarksTree_PreviewMouseRightButtonDown" />
+                    <TreeView x:Name="BookmarksTree" DockPanel.Dock="Top" Visibility="Collapsed" MaxHeight="260" Background="{DynamicResource TfxPanel}" Foreground="{DynamicResource TfxForeground}" BorderThickness="0" Padding="4,0,4,6" ScrollViewer.HorizontalScrollBarVisibility="Disabled" PreviewMouseLeftButtonUp="BookmarksTree_PreviewMouseLeftButtonUp" PreviewMouseRightButtonDown="BookmarksTree_PreviewMouseRightButtonDown" PreviewMouseDown="BookmarksTree_PreviewMouseDown" />
                     <TextBlock x:Name="FoldersHeader" DockPanel.Dock="Top" Text="FOLDERS" Foreground="{DynamicResource TfxMuted}" Margin="10,4,10,4" />
                     <TreeView x:Name="FolderTree" Background="{DynamicResource TfxPanel}" Foreground="{DynamicResource TfxForeground}" BorderThickness="0" SelectedItemChanged="FolderTree_SelectedItemChanged" PreviewMouseLeftButtonUp="FolderTree_PreviewMouseLeftButtonUp" />
                 </DockPanel>

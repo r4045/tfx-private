@@ -231,6 +231,25 @@ public partial class MainWindow
         RenderBookmarks();
     }
 
+    private void BookmarksTree_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Middle)
+        {
+            return;
+        }
+        // Swallow the middle button so the TreeView doesn't start autoscroll.
+        e.Handled = true;
+
+        var item = BookmarkItemFromSource(e.OriginalSource as DependencyObject);
+        if (item is null || item.Tag is not string path || item.Items.Count != 0)
+        {
+            return;
+        }
+        // Middle-click a bookmark leaf → open it in a new tab in the active pane
+        // (and switch to it), mirroring middle-click in the file list.
+        OpenNewTab(ActivePane, path);
+    }
+
     private void BookmarksTree_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         // Let the expander triangle toggle the group on its own.
