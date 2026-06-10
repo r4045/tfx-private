@@ -374,6 +374,48 @@ public partial class MainWindow
         UpdateStatus();
     }
 
+    /// <summary>
+    /// Vi g / G: selects the first (toTop) or last item in the active listing,
+    /// mirroring the selection/focus/scroll path of MoveActiveListingSelection.
+    /// </summary>
+    private void MoveActiveListingToEdge(bool toTop)
+    {
+        var iconView = IconViewOf(ActivePane);
+        var items = _settings.ViewMode == ViewMode.Icons ? iconView.Items : _activeGrid.Items;
+        if (items.Count == 0)
+        {
+            FocusActiveListing();
+            return;
+        }
+
+        var index = toTop ? 0 : items.Count - 1;
+        if (items[index] is not FileItem item)
+        {
+            FocusActiveListing();
+            return;
+        }
+
+        _syncingSelection = true;
+        try
+        {
+            _activeGrid.SelectedItems.Clear();
+            _activeGrid.SelectedItem = item;
+            _activeGrid.ScrollIntoView(item);
+
+            iconView.SelectedItems.Clear();
+            iconView.SelectedItem = item;
+            iconView.ScrollIntoView(item);
+        }
+        finally
+        {
+            _syncingSelection = false;
+        }
+
+        FocusSelectedListingItemNow(_activeGrid, iconView, item);
+        SchedulePreviewUpdate(item);
+        UpdateStatus();
+    }
+
     private static void FocusElement(IInputElement element)
     {
         if (element is Control control)

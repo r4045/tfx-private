@@ -42,6 +42,7 @@ public partial class MainWindow
         ["toggleTerminal"] = "ctrl+j",
         ["syncCwd"] = "ctrl+shift+j",
         ["quit"] = "ctrl+q",
+        ["changeMoveMode"] = "f1",
     };
 
     private bool InArchiveContext => ArchivePath.Contains(GetCurrentPath(_activeGrid));
@@ -135,6 +136,11 @@ public partial class MainWindow
         else if (IsShortcut("focusTerminal", e))
         {
             FocusTerminalPane();
+            e.Handled = true;
+        }
+        else if (IsShortcut("changeMoveMode", e))
+        {
+            ToggleMoveMode();
             e.Handled = true;
         }
         else if (e.Key == Key.F4)
@@ -412,6 +418,44 @@ public partial class MainWindow
             MoveActiveListingSelection(e.Key);
             e.Handled = true;
             return;
+        }
+
+        // Vi-mode letter navigation. Active only in Vi move mode while focus is
+        // in the active listing and not typing in a text box. In Explorer mode
+        // these keys fall through to the listing's built-in type-ahead search.
+        if (_moveMode == MoveMode.Vi && !inTextBox && !ctrl
+            && !Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)
+            && IsFocusInActiveListing())
+        {
+            switch (e.Key)
+            {
+                case Key.J:
+                    MoveActiveListingSelection(Key.Down);
+                    e.Handled = true;
+                    return;
+                case Key.K:
+                    MoveActiveListingSelection(Key.Up);
+                    e.Handled = true;
+                    return;
+                case Key.H:
+                    NavigateParent();
+                    e.Handled = true;
+                    return;
+                case Key.L:
+                    // Descend into the selected folder (Enter equivalent);
+                    // ignore files.
+                    if (ActiveListingSelectedItem() is FileItem target && target.IsDirectory)
+                    {
+                        OpenItem(_activeGrid, target);
+                    }
+                    e.Handled = true;
+                    return;
+                case Key.G:
+                    // g → first item, Shift+G → last item.
+                    MoveActiveListingToEdge(toTop: !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+                    e.Handled = true;
+                    return;
+            }
         }
 
         if (e.Key == Key.Delete && !inTextBox)

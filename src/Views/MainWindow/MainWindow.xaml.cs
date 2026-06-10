@@ -107,6 +107,7 @@ public partial class MainWindow : Window
         Navigate(RightGrid, ResolveInitialRightPath(), false);
         InitializeTabs(explicitLeftStart);
         ApplyLayoutSettings();
+        ApplyMoveMode();
         // Always land on the left pane at startup so the user opens onto
         // the left listing with the ".." row preselected (set by Navigate
         // above). The previously-active pane is intentionally not restored.
