@@ -139,6 +139,31 @@ public partial class MainWindow
     }
 
     /// <summary>
+    /// Middle-clicking a folder in a listing opens it in a new tab (browser-
+    /// style) and switches to it. Files and the ".." parent row are ignored.
+    /// Wired to both panes' DataGrid and icon view via PreviewMouseDown, so a
+    /// single handler covers Details and Icons views.
+    /// </summary>
+    private void Listing_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Middle || sender is not DependencyObject view)
+        {
+            return;
+        }
+        if (!TryGetListingItem(e.OriginalSource as DependencyObject, out var item)
+            || item.IsParent
+            || !item.IsDirectory)
+        {
+            return;
+        }
+
+        var grid = SideOf(view);
+        UpdateActivePane(grid);
+        OpenNewTab(PaneOf(grid), item.FullPath);
+        e.Handled = true;
+    }
+
+    /// <summary>
     /// Closes the tab at <paramref name="index"/> in <paramref name="pane"/>.
     /// When the last tab of a pane is closed, the pane is hidden (split off);
     /// the left pane never fully disappears — it always keeps one tab.
