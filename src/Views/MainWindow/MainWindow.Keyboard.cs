@@ -45,6 +45,7 @@ public partial class MainWindow
         ["changeMoveMode"] = "f1",
         ["openExplorer"] = "ctrl+shift+o",
         ["moveClipboard"] = "ctrl+shift+v",
+        ["addBookmark"] = "ctrl+d",
     };
 
     private bool InArchiveContext => ArchivePath.Contains(GetCurrentPath(_activeGrid));
@@ -232,6 +233,11 @@ public partial class MainWindow
             MoveToClipboardPath();
             e.Handled = true;
         }
+        else if (IsShortcut("addBookmark", e))
+        {
+            AddCurrentFolderBookmarkViaDialog();
+            e.Handled = true;
+        }
         else if (IsShortcut("toggleHidden", e))
         {
             ToggleHidden();
@@ -374,6 +380,36 @@ public partial class MainWindow
 
         var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         var inTextBox = Keyboard.FocusedElement is TextBox;
+
+        // Clipboard shortcuts must be handled in the tunneling pass. During
+        // bubbling, the DataGrid's built-in ApplicationCommands.Copy (Ctrl+C is
+        // its default gesture) consumes the key before the bubbling
+        // Window_KeyDown runs, so the file-aware CopySelection never fires and
+        // no file drop list lands on the clipboard. Tunneling fires on the
+        // Window before any pane control, making these reliable regardless of
+        // the DataGrid's ClipboardCopyMode. Skipped inside a text box so editing
+        // keeps normal text copy / cut / paste.
+        if (ctrl && !inTextBox)
+        {
+            if (IsShortcut("copyItems", e))
+            {
+                CopySelection(false);
+                e.Handled = true;
+                return;
+            }
+            if (IsShortcut("cutItems", e))
+            {
+                if (!InArchiveContext) CopySelection(true);
+                e.Handled = true;
+                return;
+            }
+            if (IsShortcut("pasteItems", e))
+            {
+                if (!InArchiveContext) PasteIntoActivePane();
+                e.Handled = true;
+                return;
+            }
+        }
 
         // Alt+Left / Alt+Right / Alt+Up navigation. WPF delivers Alt combos as
         // Key.System (real key in SystemKey), and the DataGrid / ListBox can

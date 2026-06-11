@@ -132,11 +132,21 @@ public partial class MainWindow
             return;
         }
 
-        var groupName = dialog.EnteredText.Trim();
-        if (string.IsNullOrEmpty(groupName))
+        AddBookmarkEntry(dialog.EnteredText, "", path);
+    }
+
+    /// <summary>
+    /// Adds an entry to a bookmark group (creating the group if needed), with
+    /// de-duplication within the group. Shared by the right-click "Add to
+    /// bookmarks..." (group-only) and the addBookmark dialog (group + alias).
+    /// </summary>
+    private void AddBookmarkEntry(string groupName, string label, string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
         {
-            groupName = "Bookmarks";
+            return;
         }
+        groupName = string.IsNullOrWhiteSpace(groupName) ? "Bookmarks" : groupName.Trim();
 
         var group = _bookmarks.Groups.FirstOrDefault(g => string.Equals(g.Name, groupName, StringComparison.OrdinalIgnoreCase));
         if (group is null)
@@ -151,10 +161,40 @@ public partial class MainWindow
             return;
         }
 
-        group.Bookmarks.Add(new BookmarkEntry { Label = "", Path = path });
+        group.Bookmarks.Add(new BookmarkEntry { Label = label.Trim(), Path = path });
         SaveBookmarks();
         RenderBookmarks();
         SetStatus(Loc.F("Bookmarked {0}", path));
+    }
+
+    /// <summary>
+    /// The addBookmark command: opens the three-field dialog (group, alias,
+    /// path) pre-filled with the active pane's current folder, then registers
+    /// it on confirm.
+    /// </summary>
+    private void AddCurrentFolderBookmarkViaDialog()
+    {
+        var path = GetCurrentPath(_activeGrid);
+        if (string.IsNullOrWhiteSpace(path) || ArchivePath.Contains(path))
+        {
+            return;
+        }
+
+        var defaultGroup = _bookmarks.Groups.LastOrDefault()?.Name ?? "Bookmarks";
+        var groupNames = _bookmarks.Groups.Select(g => g.Name).ToList();
+        var folderName = Path.GetFileName(path.TrimEnd('\\', '/'));
+        if (string.IsNullOrEmpty(folderName))
+        {
+            folderName = path;
+        }
+        var dialog = new BookmarkDialog(Loc.T("Add bookmark"), groupNames, defaultGroup, folderName, path);
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var finalPath = string.IsNullOrWhiteSpace(dialog.Path) ? path : dialog.Path;
+        AddBookmarkEntry(dialog.Group, dialog.Alias, finalPath);
     }
 
     private void BookmarksTree_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)

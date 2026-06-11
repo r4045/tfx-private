@@ -156,41 +156,102 @@ public partial class MainWindow
         var succeeded = 0;
         var failed = new List<string>();
         var leftBehind = new List<string>();
+        string? lastWrittenName = null;
+
+        // When the user ticks "apply to all", the chosen action is reused for
+        // every remaining collision instead of prompting again.
+        FileConflictChoice? bulkChoice = null;
+        var remaining = files.Length;
 
         foreach (var source in files)
         {
+            remaining--;
             var requestedTarget = Path.Combine(destination, Path.GetFileName(source));
             var isMove = _cutBuffer.Contains(source, StringComparer.OrdinalIgnoreCase);
+
+            // Moving an item onto itself is a no-op.
             if (isMove && FsHelpers.SamePath(source, requestedTarget))
             {
                 continue;
             }
 
-            var target = FsHelpers.NextAvailablePath(requestedTarget);
+            var sourceIsDir = Directory.Exists(source);
+            // Copy into the same folder: the user means "duplicate". Overwriting
+            // an item with itself is impossible, so skip the prompt and always
+            // keep both under a numbered name (matches Explorer's behaviour).
+            var selfCopy = !isMove && FsHelpers.SamePath(source, requestedTarget);
+            var collides = !selfCopy && (File.Exists(requestedTarget) || Directory.Exists(requestedTarget));
+
+            string target;
+            var overwrite = false;
+
+            if (collides)
+            {
+                var choice = bulkChoice ?? FileConflictChoice.KeepBoth;
+                if (bulkChoice is null)
+                {
+                    var dialog = new FileConflictDialog(
+                        Path.GetFileName(requestedTarget),
+                        sourceIsDir,
+                        allowOverwrite: true,
+                        canApplyToAll: remaining > 0);
+                    if (dialog.ShowDialog() != true)
+                    {
+                        // Cancel aborts the whole paste.
+                        break;
+                    }
+                    choice = dialog.Choice;
+                    if (dialog.ApplyToAll)
+                    {
+                        bulkChoice = choice;
+                    }
+                }
+
+                if (choice == FileConflictChoice.Overwrite)
+                {
+                    target = requestedTarget;
+                    overwrite = true;
+                }
+                else
+                {
+                    target = FsHelpers.NextAvailablePath(requestedTarget);
+                }
+            }
+            else
+            {
+                target = selfCopy ? FsHelpers.NextAvailablePath(requestedTarget) : requestedTarget;
+            }
+
             try
             {
-                if (Directory.Exists(source))
+                if (sourceIsDir)
                 {
                     if (isMove)
                     {
-                        // Use VbFileSystem.MoveDirectory: it falls back to copy + delete
+                        // Replace-on-overwrite: MoveDirectory won't merge over an
+                        // existing folder, so clear the target first.
+                        if (overwrite && Directory.Exists(target))
+                        {
+                            Directory.Delete(target, recursive: true);
+                        }
+                        // VbFileSystem.MoveDirectory falls back to copy + delete
                         // across volumes, where Directory.Move would throw IOException.
                         VbFileSystem.MoveDirectory(source, target);
                     }
                     else
                     {
-                        VbFileSystem.CopyDirectory(source, target);
+                        VbFileSystem.CopyDirectory(source, target, overwrite);
                     }
                 }
                 else if (File.Exists(source))
                 {
                     if (isMove)
                     {
-                        File.Move(source, target);
+                        File.Move(source, target, overwrite);
                     }
                     else
                     {
-                        File.Copy(source, target);
+                        File.Copy(source, target, overwrite);
                     }
                 }
                 else
@@ -210,6 +271,8 @@ public partial class MainWindow
                 {
                     succeeded++;
                 }
+
+                lastWrittenName = Path.GetFileName(target);
             }
             catch (Exception ex)
             {
@@ -218,8 +281,23 @@ public partial class MainWindow
         }
 
         _cutBuffer = [];
-        Reload(LeftGrid);
-        Reload(RightGrid);
+
+        // Refresh both panes (the source can be the other pane) and select the
+        // most-recently written entry in the destination so the paste is visibly
+        // reflected even on network shares, where the watcher-driven refresh is
+        // disabled and only the periodic poll would otherwise catch up.
+        var destGrid = _activeGrid;
+        var otherGrid = destGrid == LeftGrid ? RightGrid : LeftGrid;
+        Reload(destGrid, lastWrittenName);
+        Reload(otherGrid);
+
+        // Pasting clears and repopulates the active pane (and a conflict dialog,
+        // when shown, pulls focus away), so keyboard focus ends up off the
+        // listing until the user clicks back in. Restore it once the reload has
+        // settled. Queued at ApplicationIdle so it runs after the async reload
+        // has populated the pane and ApplyPendingSelection has selected the
+        // pasted entry, landing focus on that row.
+        Dispatcher.BeginInvoke(FocusActiveListing, DispatcherPriority.ApplicationIdle);
 
         if (failed.Count == 0 && leftBehind.Count == 0)
         {
