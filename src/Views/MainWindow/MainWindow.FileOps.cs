@@ -293,11 +293,41 @@ public partial class MainWindow
 
         // Pasting clears and repopulates the active pane (and a conflict dialog,
         // when shown, pulls focus away), so keyboard focus ends up off the
-        // listing until the user clicks back in. Restore it once the reload has
-        // settled. Queued at ApplicationIdle so it runs after the async reload
-        // has populated the pane and ApplyPendingSelection has selected the
-        // pasted entry, landing focus on that row.
+        // listing until the user clicks back in. Re-claim it once the async
+        // reload has settled and ApplyPendingSelection has selected the pasted
+        // entry.
         Dispatcher.BeginInvoke(FocusActiveListing, DispatcherPriority.ApplicationIdle);
+
+        // The first paste after launch can also lose focus to a one-time lazy
+        // initialization that completes asynchronously *after* the idle callback
+        // above — most likely the preview pane's WebView2 grabbing focus on its
+        // first load (already initialized on later pastes, which is why only the
+        // first fails). Watch briefly and re-claim focus whenever it drifts to
+        // the window or the preview, but never when the user has deliberately
+        // moved it elsewhere (path bar, other pane, ...). Bounded to a handful of
+        // ticks so it stops once focus settles on the listing.
+        var refocus = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        var refocusAttempts = 0;
+        refocus.Tick += (_, _) =>
+        {
+            refocusAttempts++;
+            if (!IsFocusInActiveListing())
+            {
+                var focused = Keyboard.FocusedElement as DependencyObject;
+                var deliberateMove = focused is not null
+                    && !ReferenceEquals(focused, this)
+                    && !IsInside(focused, HtmlPreview);
+                if (!deliberateMove)
+                {
+                    FocusActiveListing();
+                }
+            }
+            if (IsFocusInActiveListing() || refocusAttempts >= 4)
+            {
+                refocus.Stop();
+            }
+        };
+        refocus.Start();
 
         if (failed.Count == 0 && leftBehind.Count == 0)
         {
