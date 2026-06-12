@@ -515,6 +515,56 @@ public partial class MainWindow
                     MoveActiveListingToEdge(toTop: !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
                     e.Handled = true;
                     return;
+                case Key.A:
+                    // a → new file (Vi). Suppressed inside an archive view,
+                    // matching the Ctrl+N path. Shift is reserved for a future
+                    // variant (see cut/move), so it is a deliberate no-op here.
+                    if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) && !InArchiveContext)
+                    {
+                        NewFile();
+                    }
+                    e.Handled = true;
+                    return;
+                case Key.N:
+                    // n → new directory (Vi). Mirrors Ctrl+Shift+N's archive
+                    // guard. NOTE: Ctrl+N is "new file" elsewhere, so n means
+                    // different things across modes — intentional per config.
+                    if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) && !InArchiveContext)
+                    {
+                        NewFolder();
+                    }
+                    e.Handled = true;
+                    return;
+                case Key.C:
+                    // c → copy selection to the clipboard (Vi). Copy is
+                    // read-only, so no archive guard is needed (matches Ctrl+C).
+                    if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+                    {
+                        CopySelection(false);
+                    }
+                    e.Handled = true;
+                    return;
+                case Key.X:
+                    // x → cut selection to the clipboard (Vi). Marks items for
+                    // a move on next paste; guarded to match Ctrl+X so cut is
+                    // blocked inside an archive view.
+                    if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) && !InArchiveContext)
+                    {
+                        CopySelection(true);
+                    }
+                    e.Handled = true;
+                    return;
+                case Key.P:
+                    // p → paste into the active pane (Vi), vifm/ranger
+                    // convention. Suppressed inside an archive view, matching
+                    // Ctrl+V. Moved off v so v stays free for a future
+                    // visual-select mode.
+                    if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) && !InArchiveContext)
+                    {
+                        PasteIntoActivePane();
+                    }
+                    e.Handled = true;
+                    return;
             }
         }
 
