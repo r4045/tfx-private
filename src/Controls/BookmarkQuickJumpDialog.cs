@@ -13,7 +13,8 @@ namespace Tfx;
 /// second is the bookmark's position within that group (a, b, c …). Pressing the
 /// first letter narrows to that group; pressing the second navigates the active
 /// pane to that folder and closes the dialog. Esc closes without navigating;
-/// Backspace clears a half-typed key.
+/// Backspace clears a half-typed key. As an alternative to the mnemonics, the
+/// ↑/↓ keys move a row cursor and Enter opens the highlighted row.
 ///
 /// The mnemonics are POSITIONAL: they shift when groups or bookmarks are
 /// reordered, or when an entry is inserted/removed ahead of others in
@@ -29,6 +30,7 @@ public sealed class BookmarkQuickJumpDialog : Window
     }
 
     private static readonly Color HighlightBg = Color.FromRgb(38, 56, 69);
+    private static readonly Color SelectionBg = Color.FromRgb(54, 80, 98);
     private static readonly Color AccentFg = Color.FromRgb(126, 211, 164);
     private static readonly Color MutedFg = Color.FromRgb(143, 155, 168);
     private static readonly Color BorderColor = Color.FromRgb(47, 58, 67);
@@ -36,6 +38,7 @@ public sealed class BookmarkQuickJumpDialog : Window
     private readonly List<Row> _rows = [];
     private readonly TextBlock _hint;
     private string _pending = "";
+    private int _selectedIndex = -1;
 
     /// <summary>The chosen folder, or null when the dialog was cancelled.</summary>
     public string? SelectedPath { get; private set; }
@@ -88,7 +91,14 @@ public sealed class BookmarkQuickJumpDialog : Window
         Content = root;
         UpdateHint();
 
-        Loaded += (_, _) => Focus();
+        Loaded += (_, _) =>
+        {
+            Focus();
+            if (_rows.Count > 0)
+            {
+                SetSelectedIndex(0);
+            }
+        };
         PreviewKeyDown += OnPreviewKeyDown;
     }
 
@@ -227,11 +237,27 @@ public sealed class BookmarkQuickJumpDialog : Window
                 }
                 e.Handled = true;
                 return;
+            case Key.Up:
+                MoveSelection(-1);
+                e.Handled = true;
+                return;
+            case Key.Down:
+                MoveSelection(1);
+                e.Handled = true;
+                return;
+            case Key.Enter:
+                if (_selectedIndex >= 0 && _selectedIndex < _rows.Count)
+                {
+                    SelectedPath = _rows[_selectedIndex].Path;
+                    DialogResult = true;
+                }
+                e.Handled = true;
+                return;
         }
 
         if (!TryLetter(e, out var c))
         {
-            return; // ignore non-letter keys (arrows, etc. reach the ScrollViewer)
+            return; // ignore non-letter keys (Left/Right, PageUp/Down reach the ScrollViewer)
         }
         e.Handled = true;
 
@@ -275,15 +301,57 @@ public sealed class BookmarkQuickJumpDialog : Window
         return false;
     }
 
+    private void MoveSelection(int delta)
+    {
+        if (_rows.Count == 0)
+        {
+            return;
+        }
+        // Arrow keys switch from mnemonic mode to browse mode: drop any
+        // half-typed key so the dimming clears and the cursor stands alone.
+        if (_pending.Length > 0)
+        {
+            _pending = "";
+            UpdateHint();
+        }
+        var next = _selectedIndex < 0
+            ? (delta > 0 ? 0 : _rows.Count - 1)
+            : _selectedIndex + delta;
+        SetSelectedIndex(next);
+    }
+
+    private void SetSelectedIndex(int index)
+    {
+        if (_rows.Count == 0)
+        {
+            _selectedIndex = -1;
+            return;
+        }
+        _selectedIndex = Math.Clamp(index, 0, _rows.Count - 1);
+        UpdateHighlight();
+        _rows[_selectedIndex].Container.BringIntoView();
+    }
+
     private void UpdateHighlight()
     {
-        foreach (var row in _rows)
+        for (var i = 0; i < _rows.Count; i++)
         {
+            var row = _rows[i];
             var match = _pending.Length == 0 || row.Key.StartsWith(_pending, StringComparison.Ordinal);
             row.Container.Opacity = match ? 1.0 : 0.32;
-            row.Container.Background = _pending.Length == 1 && match
-                ? new SolidColorBrush(HighlightBg)
-                : Brushes.Transparent;
+
+            if (i == _selectedIndex)
+            {
+                // The arrow-key cursor wins over the mnemonic group highlight so
+                // the active row stays unambiguous, even mid-typing.
+                row.Container.Background = new SolidColorBrush(SelectionBg);
+            }
+            else
+            {
+                row.Container.Background = _pending.Length == 1 && match
+                    ? new SolidColorBrush(HighlightBg)
+                    : Brushes.Transparent;
+            }
         }
     }
 
@@ -295,7 +363,7 @@ public sealed class BookmarkQuickJumpDialog : Window
             return;
         }
         _hint.Text = _pending.Length == 0
-            ? Loc.T("Type the 2-letter key to jump · Esc to close")
+            ? Loc.T("2-letter key or ↑↓ Enter to jump · Esc to close")
             : Loc.F("Pending: {0}_ · Esc to close", _pending);
     }
 }
