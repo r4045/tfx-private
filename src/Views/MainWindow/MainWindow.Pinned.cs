@@ -72,14 +72,6 @@ public partial class MainWindow
     private void RenderBookmarks()
     {
         BookmarksTree.Items.Clear();
-        if (!_bookmarks.Groups.Any(g => g.Bookmarks.Count > 0))
-        {
-            BookmarksHeader.Visibility = Visibility.Collapsed;
-            BookmarksTree.Visibility = Visibility.Collapsed;
-            return;
-        }
-        BookmarksHeader.Visibility = Visibility.Visible;
-        BookmarksTree.Visibility = Visibility.Visible;
 
         foreach (var group in _bookmarks.Groups)
         {
@@ -111,6 +103,92 @@ public partial class MainWindow
             }
             BookmarksTree.Items.Add(groupItem);
         }
+
+        ApplySidebarSections();
+    }
+
+    /// <summary>
+    /// Applies the left-sidebar section layout. Bookmarks and folders each get a
+    /// header that is always shown plus a tree that can be collapsed away
+    /// (state in <c>_settings.BookmarksCollapsed</c> / <c>FoldersCollapsed</c>);
+    /// the inner GridSplitter appears only when BOTH trees are expanded and
+    /// apportions vertical space between them. The bookmarks section is
+    /// suppressed entirely when there are no bookmarks. Single source of truth,
+    /// called from RenderBookmarks, the header click handlers, and startup.
+    /// </summary>
+    private void ApplySidebarSections()
+    {
+        var bookmarksAvailable = _bookmarks.Groups.Any(g => g.Bookmarks.Count > 0);
+        var bookmarksShown = bookmarksAvailable && !_settings.BookmarksCollapsed;
+        var foldersShown = !_settings.FoldersCollapsed;
+
+        BookmarksHeaderBar.Visibility = bookmarksAvailable ? Visibility.Visible : Visibility.Collapsed;
+        BookmarksTree.Visibility = bookmarksShown ? Visibility.Visible : Visibility.Collapsed;
+        FolderTree.Visibility = foldersShown ? Visibility.Visible : Visibility.Collapsed;
+
+        BookmarksChevron.Text = bookmarksShown ? "\u25BE" : "\u25B8";
+        FoldersChevron.Text = foldersShown ? "\u25BE" : "\u25B8";
+
+        if (bookmarksShown && foldersShown)
+        {
+            // Both expanded: bookmarks take a fixed (draggable) height, folders
+            // take the remainder, splitter live between them.
+            var height = _settings.BookmarkSectionHeight >= 60 ? _settings.BookmarkSectionHeight : 200;
+            BookmarksRow.MinHeight = 48;
+            BookmarksRow.Height = new GridLength(height);
+            SidebarInnerSplitterRow.Height = new GridLength(5);
+            SidebarInnerSplitter.Visibility = Visibility.Visible;
+            FoldersRow.MinHeight = 48;
+            FoldersRow.Height = new GridLength(1, GridUnitType.Star);
+        }
+        else
+        {
+            // At most one tree is expanded: no splitter; the expanded tree (if
+            // any) fills, the other collapses to just its header.
+            SidebarInnerSplitterRow.Height = new GridLength(0);
+            SidebarInnerSplitter.Visibility = Visibility.Collapsed;
+            BookmarksRow.MinHeight = 0;
+            FoldersRow.MinHeight = 0;
+
+            if (bookmarksShown)
+            {
+                BookmarksRow.Height = new GridLength(1, GridUnitType.Star);
+                FoldersRow.Height = GridLength.Auto;
+            }
+            else
+            {
+                BookmarksRow.Height = GridLength.Auto;
+                FoldersRow.Height = foldersShown ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
+            }
+        }
+    }
+
+    private void BookmarksHeader_Click(object sender, MouseButtonEventArgs e)
+    {
+        // Only meaningful when bookmarks exist; otherwise the header isn't shown.
+        if (!_bookmarks.Groups.Any(g => g.Bookmarks.Count > 0))
+        {
+            return;
+        }
+        _settings.BookmarksCollapsed = !_settings.BookmarksCollapsed;
+        ApplySidebarSections();
+        SaveSettings();
+    }
+
+    private void FoldersHeader_Click(object sender, MouseButtonEventArgs e)
+    {
+        _settings.FoldersCollapsed = !_settings.FoldersCollapsed;
+        ApplySidebarSections();
+        SaveSettings();
+    }
+
+    private void SidebarInnerSplitter_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+    {
+        if (BookmarksRow.ActualHeight > 0)
+        {
+            _settings.BookmarkSectionHeight = BookmarksRow.ActualHeight;
+        }
+        SaveSettings();
     }
 
     /// <summary>

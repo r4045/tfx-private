@@ -37,6 +37,13 @@ public sealed class AppSettings
     // Bookmark groups (config.toml [[bookmarks]]) that are collapsed in the
     // sidebar. Groups not listed here default to expanded.
     public List<string> CollapsedBookmarkGroups { get; set; } = [];
+    // Left-sidebar section collapse, independent of the whole-sidebar
+    // ShowFolderTree toggle. Each hides only its own tree; the header stays
+    // clickable to restore. BookmarkSectionHeight persists the inner splitter
+    // position used when both sections are expanded.
+    public bool BookmarksCollapsed { get; set; }
+    public bool FoldersCollapsed { get; set; }
+    public double BookmarkSectionHeight { get; set; } = 200;
     public string TerminalCommand { get; set; } = "";
     public string TerminalArguments { get; set; } = "";
 

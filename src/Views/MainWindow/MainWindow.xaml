@@ -225,12 +225,31 @@
             </Grid.ColumnDefinitions>
 
             <Border x:Name="SidebarBorder" Grid.Column="0" Background="{DynamicResource TfxPanel}" BorderBrush="{DynamicResource TfxBorder}" BorderThickness="0,0,1,0">
-                <DockPanel>
-                    <TextBlock x:Name="BookmarksHeader" DockPanel.Dock="Top" Text="BOOKMARKS" Foreground="{DynamicResource TfxMuted}" Margin="10,4,10,4" Visibility="Collapsed" />
-                    <TreeView x:Name="BookmarksTree" DockPanel.Dock="Top" Visibility="Collapsed" MaxHeight="260" Background="{DynamicResource TfxPanel}" Foreground="{DynamicResource TfxForeground}" BorderThickness="0" Padding="4,0,4,6" ScrollViewer.HorizontalScrollBarVisibility="Disabled" PreviewMouseLeftButtonUp="BookmarksTree_PreviewMouseLeftButtonUp" PreviewMouseRightButtonDown="BookmarksTree_PreviewMouseRightButtonDown" PreviewMouseDown="BookmarksTree_PreviewMouseDown" />
-                    <TextBlock x:Name="FoldersHeader" DockPanel.Dock="Top" Text="FOLDERS" Foreground="{DynamicResource TfxMuted}" Margin="10,4,10,4" />
-                    <TreeView x:Name="FolderTree" Background="{DynamicResource TfxPanel}" Foreground="{DynamicResource TfxForeground}" BorderThickness="0" SelectedItemChanged="FolderTree_SelectedItemChanged" PreviewMouseLeftButtonUp="FolderTree_PreviewMouseLeftButtonUp" />
-                </DockPanel>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition x:Name="BookmarksRow" Height="Auto" />
+                        <RowDefinition x:Name="SidebarInnerSplitterRow" Height="0" />
+                        <RowDefinition x:Name="FoldersRow" Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0">
+                        <DockPanel x:Name="BookmarksHeaderBar" DockPanel.Dock="Top" Cursor="Hand" Background="Transparent" Visibility="Collapsed" MouseLeftButtonUp="BookmarksHeader_Click">
+                            <TextBlock x:Name="BookmarksChevron" DockPanel.Dock="Left" Text="&#x25BE;" Foreground="{DynamicResource TfxMuted}" Margin="10,4,4,4" />
+                            <TextBlock x:Name="BookmarksHeader" Text="BOOKMARKS" Foreground="{DynamicResource TfxMuted}" Margin="0,4,10,4" />
+                        </DockPanel>
+                        <TreeView x:Name="BookmarksTree" Visibility="Collapsed" Background="{DynamicResource TfxPanel}" Foreground="{DynamicResource TfxForeground}" BorderThickness="0" Padding="4,0,4,6" ScrollViewer.HorizontalScrollBarVisibility="Disabled" PreviewMouseLeftButtonUp="BookmarksTree_PreviewMouseLeftButtonUp" PreviewMouseRightButtonDown="BookmarksTree_PreviewMouseRightButtonDown" PreviewMouseDown="BookmarksTree_PreviewMouseDown" />
+                    </DockPanel>
+
+                    <GridSplitter x:Name="SidebarInnerSplitter" Grid.Row="1" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{DynamicResource TfxBorder}" Cursor="SizeNS" ResizeBehavior="PreviousAndNext" ResizeDirection="Rows" Visibility="Collapsed" DragCompleted="SidebarInnerSplitter_DragCompleted" />
+
+                    <DockPanel Grid.Row="2">
+                        <DockPanel x:Name="FoldersHeaderBar" DockPanel.Dock="Top" Cursor="Hand" Background="Transparent" MouseLeftButtonUp="FoldersHeader_Click">
+                            <TextBlock x:Name="FoldersChevron" DockPanel.Dock="Left" Text="&#x25BE;" Foreground="{DynamicResource TfxMuted}" Margin="10,4,4,4" />
+                            <TextBlock x:Name="FoldersHeader" Text="FOLDERS" Foreground="{DynamicResource TfxMuted}" Margin="0,4,10,4" />
+                        </DockPanel>
+                        <TreeView x:Name="FolderTree" Background="{DynamicResource TfxPanel}" Foreground="{DynamicResource TfxForeground}" BorderThickness="0" SelectedItemChanged="FolderTree_SelectedItemChanged" PreviewMouseLeftButtonUp="FolderTree_PreviewMouseLeftButtonUp" />
+                    </DockPanel>
+                </Grid>
             </Border>
 
             <GridSplitter x:Name="SidebarSplitter" Grid.Column="1" Width="5" Background="{DynamicResource TfxBorder}" HorizontalAlignment="Stretch" />

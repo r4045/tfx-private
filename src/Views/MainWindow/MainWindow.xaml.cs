@@ -725,6 +725,10 @@ public partial class MainWindow : Window
         {
             _settings.SidebarWidth = SidebarColumn.ActualWidth > 0 ? SidebarColumn.ActualWidth : SidebarColumn.Width.Value;
         }
+        if (SidebarInnerSplitter.Visibility == Visibility.Visible && BookmarksRow.ActualHeight > 0)
+        {
+            _settings.BookmarkSectionHeight = BookmarksRow.ActualHeight;
+        }
         if (showPreview)
         {
             _settings.PreviewWidth = PreviewColumn.ActualWidth > 0 ? PreviewColumn.ActualWidth : PreviewColumn.Width.Value;
@@ -834,6 +838,7 @@ public partial class MainWindow : Window
         }
 
         SetFolderTreeVisible(_settings.ShowFolderTree);
+        ApplySidebarSections();
         SetSplitVisible(_settings.ShowSplit);
         SetPreviewVisible(_settings.ShowPreview);
         if (_settings.IsMaximized)
