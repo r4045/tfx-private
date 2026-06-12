@@ -126,7 +126,15 @@ public partial class MainWindow : Window
         {
             if (_config.Errors.Count > 0)
             {
-                SetStatus(Loc.F("Config warning: {0}", _config.Errors[0]));
+                // Show every parse / shortcut-conflict issue at once, not just
+                // the first, so the user can fix them in one pass. The status
+                // line is a single row and gets overwritten on the first
+                // navigation, so the full list also lives on the status
+                // tooltip for inspection at any time.
+                SetStatus(_config.Errors.Count == 1
+                    ? Loc.F("Config warning: {0}", _config.Errors[0])
+                    : Loc.F("Config warning ({0}): {1}", _config.Errors.Count, string.Join("  |  ", _config.Errors)));
+                StatusText.ToolTip = string.Join("\n", _config.Errors);
             }
             Dispatcher.BeginInvoke(EnsureInitialLeftFocus, DispatcherPriority.ApplicationIdle);
         };
@@ -374,20 +382,54 @@ public partial class MainWindow : Window
             }
         }
 
-        var seen = _shortcuts.ToDictionary(pair => pair.Value, pair => pair.Key);
+        // Apply every config override first (each replaces that action's
+        // default), THEN look for conflicts on the merged result. Detecting
+        // while applying would be order-dependent: an override that lands on a
+        // key still held by some default would be wrongly rejected even when a
+        // later override moves that default off the key. Merging everything
+        // first lets such reassignments settle before anything is judged.
         foreach (var (action, shortcut) in _config.Shortcuts)
         {
-            if (seen.TryGetValue(shortcut, out var existing) && !existing.Equals(action, StringComparison.OrdinalIgnoreCase))
+            _shortcuts[action] = shortcut;
+        }
+
+        // Group the merged bindings by physical shortcut; any key claimed by two
+        // or more actions is a real conflict that survived the merge.
+        var actionsByShortcut = new Dictionary<AppShortcut, List<string>>();
+        foreach (var (action, shortcut) in _shortcuts)
+        {
+            if (!actionsByShortcut.TryGetValue(shortcut, out var actions))
             {
-                _config.Errors.Add($"Shortcut conflict: {action} and {existing} both use {shortcut.DisplayText}");
+                actions = [];
+                actionsByShortcut[shortcut] = actions;
+            }
+            actions.Add(action);
+        }
+
+        foreach (var (shortcut, actions) in actionsByShortcut)
+        {
+            if (actions.Count < 2)
+            {
                 continue;
             }
-            if (_shortcuts.TryGetValue(action, out var previous))
+
+            // Keep one binding and unbind the rest so a single key never fires
+            // two actions. An explicitly configured action outranks one left on
+            // its default; among equals the ordinally-first action name wins so
+            // the outcome is stable regardless of dictionary enumeration order.
+            var winner = actions
+                .OrderByDescending(a => _config.Shortcuts.ContainsKey(a))
+                .ThenBy(a => a, StringComparer.OrdinalIgnoreCase)
+                .First();
+            foreach (var loser in actions)
             {
-                seen.Remove(previous);
+                if (loser.Equals(winner, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                _shortcuts.Remove(loser);
+                _config.Errors.Add($"Shortcut conflict: {loser} and {winner} both use {shortcut.DisplayText}; {loser} left unbound");
             }
-            _shortcuts[action] = shortcut;
-            seen[shortcut] = action;
         }
     }
 
