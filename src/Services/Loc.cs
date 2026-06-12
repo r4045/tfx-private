@@ -165,5 +165,13 @@ internal static class Loc
         ["Minimize"] = "最小化",
         ["Maximize / restore"] = "最大化 / 元に戻す",
         ["Close"] = "閉じる",
+        ["Jump to bookmark"] = "ブックマークへジャンプ",
+        ["No bookmarks yet."] = "ブックマークがありません。",
+        ["Key"] = "キー",
+        ["Group"] = "グループ",
+        ["Alias"] = "エイリアス",
+        ["Path"] = "パス",
+        ["Type the 2-letter key to jump · Esc to close"] = "2文字キーで移動 · Esc で閉じる",
+        ["Pending: {0}_ · Esc to close"] = "入力中: {0}_ · Esc で閉じる",
     };
 }

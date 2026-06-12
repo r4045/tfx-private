@@ -850,6 +850,7 @@ public sealed class AppConfig
         toggleTerminal = "ctrl+j"
         syncCwd = "ctrl+shift+j"
         quit = "ctrl+q"
+        openBookmarkDialog = "f8"
 
         # Startup layout:
         # [startup]

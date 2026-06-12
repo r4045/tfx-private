@@ -197,6 +197,30 @@ public partial class MainWindow
         AddBookmarkEntry(dialog.Group, dialog.Alias, finalPath);
     }
 
+    /// <summary>
+    /// The openBookmarkDialog command (F8 by default): opens a keyboard-driven
+    /// quick-jump list of every bookmark. Each entry carries a two-letter
+    /// mnemonic (group letter + entry letter); typing it navigates the active
+    /// pane to that folder. Esc cancels.
+    /// </summary>
+    private void OpenBookmarkQuickJump()
+    {
+        if (!_bookmarks.Groups.Any(g => g.Bookmarks.Count > 0))
+        {
+            SetStatus(Loc.T("No bookmarks yet."));
+            return;
+        }
+
+        var dialog = new BookmarkQuickJumpDialog(_bookmarks);
+        if (dialog.ShowDialog() == true && dialog.SelectedPath is { } target)
+        {
+            // Same path as a sidebar click: navigate the active pane, not
+            // existence-checked, so an offline share fails through Navigate's
+            // normal error path.
+            Navigate(_activeGrid, target, true);
+        }
+    }
+
     private void BookmarksTree_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         var item = BookmarkItemFromSource(e.OriginalSource as DependencyObject);
