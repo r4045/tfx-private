@@ -46,6 +46,7 @@ public partial class MainWindow
         ["openExplorer"] = "ctrl+shift+o",
         ["moveClipboard"] = "ctrl+shift+v",
         ["addBookmark"] = "ctrl+d",
+        ["pathToClipboard"] = "f9",
     };
 
     private bool InArchiveContext => ArchivePath.Contains(GetCurrentPath(_activeGrid));
@@ -236,6 +237,11 @@ public partial class MainWindow
         else if (IsShortcut("addBookmark", e))
         {
             AddCurrentFolderBookmarkViaDialog();
+            e.Handled = true;
+        }
+        else if (IsShortcut("pathToClipboard", e))
+        {
+            PathToClipboard();
             e.Handled = true;
         }
         else if (IsShortcut("toggleHidden", e))

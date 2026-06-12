@@ -223,8 +223,8 @@ public partial class MainWindow
         paste.Click += (_, _) => PasteIntoActivePane();
         menu.Items.Add(paste);
 
-        var copyCurrentPath = new MenuItem { Header = Loc.T("Copy current path"), IsEnabled = oneSelected };
-        copyCurrentPath.Click += (_, _) => CopySelectedPath(selection);
+        var copyCurrentPath = new MenuItem { Header = Loc.T("Copy current path"), InputGestureText = ShortcutText("pathToClipboard") };
+        copyCurrentPath.Click += (_, _) => PathToClipboard();
         menu.Items.Add(copyCurrentPath);
 
         menu.Items.Add(new Separator());

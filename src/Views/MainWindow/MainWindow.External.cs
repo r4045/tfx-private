@@ -173,14 +173,33 @@ public partial class MainWindow
 
     private void Hidden_Click(object sender, RoutedEventArgs e) => ToggleHidden();
 
-    private void CopySelectedPath(IReadOnlyList<FileItem> selection)
+    /// <summary>
+    /// Copies one path to the clipboard as text (pathToClipboard, F10 by
+    /// default). With items selected, copies the first selected entry's full
+    /// path; the ".." parent row is ignored so it never wins over a real
+    /// selection. With nothing selected (or only ".."), copies the active pane's
+    /// current folder. Note: "first" is selection order (DataGrid.SelectedItems),
+    /// not display order — they differ when the user ctrl-clicks out of sequence.
+    /// </summary>
+    private void PathToClipboard()
     {
-        if (selection.Count != 1)
+        var first = ActiveSelectedItems().FirstOrDefault(i => !i.IsParent);
+        var path = first?.FullPath ?? GetCurrentPath(_activeGrid);
+        if (string.IsNullOrEmpty(path))
         {
             return;
         }
 
-        Clipboard.SetText(selection[0].FullPath);
-        SetStatus(Loc.F("Copied path: {0}", selection[0].FullPath));
+        try
+        {
+            Clipboard.SetText(path);
+            SetStatus(Loc.F("Copied path: {0}", path));
+        }
+        catch (Exception ex)
+        {
+            // Another process can hold the clipboard open; surface the failure
+            // instead of letting the exception escape the key handler.
+            SetStatus(Loc.F("Failed to copy path: {0}", ex.Message));
+        }
     }
 }

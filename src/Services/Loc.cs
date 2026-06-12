@@ -119,6 +119,7 @@ internal static class Loc
         ["Hidden files visible"] = "隠しファイルを表示",
         ["Hidden files hidden"] = "隠しファイルを非表示",
         ["Copied path: {0}"] = "パスをコピーしました: {0}",
+        ["Failed to copy path: {0}"] = "パスのコピーに失敗しました: {0}",
         ["Cut {0} item(s)"] = "{0} 個を切り取りました",
         ["Copied {0} item(s)"] = "{0} 個をコピーしました",
         ["Pasted {0} item(s)"] = "{0} 個を貼り付けました",
