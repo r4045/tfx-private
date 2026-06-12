@@ -345,7 +345,7 @@ public partial class MainWindow
             }
             e.Handled = true;
         }
-        else if (IsShortcut("rename", e) && _activeGrid.SelectedItem is FileItem renameItem && !renameItem.IsParent)
+        else if (IsShortcut("rename", e) && ActiveListingCurrentItem() is FileItem renameItem && !renameItem.IsParent)
         {
             if (!InArchiveContext) StartRename(_activeGrid, renameItem);
             e.Handled = true;
@@ -355,7 +355,7 @@ public partial class MainWindow
             NavigateParent();
             e.Handled = true;
         }
-        else if (e.Key == Key.Left || e.Key == Key.Right)
+        else if ((e.Key == Key.Left || e.Key == Key.Right) && !Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {
             // Left / Right move focus between file panes only when focus is
             // already inside a pane. From the toolbar, folder tree, search
@@ -472,10 +472,19 @@ public partial class MainWindow
         // a Tab switch — sometimes focus ends up on the container and the
         // built-in handler does nothing. Intercepting here makes navigation
         // deterministic regardless of where focus landed inside the pane.
+        if (ctrl && !inTextBox && e.Key == Key.Space && IsFocusInActiveListing())
+        {
+            // Ctrl+Space toggles the focused (lead) item — the partner of
+            // Ctrl+Arrow's focus-only movement.
+            ToggleActiveListingLeadSelection();
+            e.Handled = true;
+            return;
+        }
+
         if (!inTextBox && e.Key is Key.Up or Key.Down or Key.PageUp or Key.PageDown
             && (IsFocusInActiveListing() || ShouldStartListingNavigation()))
         {
-            MoveActiveListingSelection(e.Key);
+            MoveActiveListingSelection(e.Key, Keyboard.Modifiers);
             e.Handled = true;
             return;
         }
@@ -585,7 +594,7 @@ public partial class MainWindow
             return;
         }
 
-        if (e.Key == Key.Enter && !inTextBox && _activeGrid.SelectedItem is FileItem item)
+        if (e.Key == Key.Enter && !inTextBox && ActiveListingCurrentItem() is FileItem item)
         {
             OpenItem(_activeGrid, item);
             e.Handled = true;

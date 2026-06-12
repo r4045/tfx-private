@@ -60,6 +60,7 @@ public partial class MainWindow
             _syncingSelection = false;
         }
 
+        _listingAnchorItem = _listingLeadItem = lb.SelectedItem as FileItem;
         UpdateActivePane(grid);
         SchedulePreviewUpdate(lb.SelectedItems.OfType<FileItem>());
         UpdateStatus();

@@ -60,6 +60,8 @@ public partial class MainWindow : Window
     private DataGrid? _rubberBandGrid;
     private ListBox? _rubberBandListBox;
     private bool _syncingSelection;
+    private FileItem? _listingAnchorItem;
+    private FileItem? _listingLeadItem;
     private bool _suspendSettingsSave;
     private bool _syncingFolderTree;
     private string? _leftPendingSelectionName;

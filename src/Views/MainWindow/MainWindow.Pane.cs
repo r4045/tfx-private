@@ -72,6 +72,11 @@ public partial class MainWindow
 
         if (sender is DataGrid grid)
         {
+            // A user-driven (mouse) selection re-anchors the keyboard range so a
+            // following Shift+Arrow extends from the clicked row, not from a
+            // stale keyboard position. Keyboard moves run under _syncingSelection
+            // and set the anchor themselves, so they skip this handler.
+            _listingAnchorItem = _listingLeadItem = grid.SelectedItem as FileItem;
             UpdateActivePane(grid);
             SchedulePreviewUpdate(SelectedItems(grid));
             UpdateStatus();

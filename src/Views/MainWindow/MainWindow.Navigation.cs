@@ -301,50 +301,75 @@ public partial class MainWindow
         FocusElement(_settings.ViewMode == ViewMode.Icons ? iconView : _activeGrid);
     }
 
-    private void MoveActiveListingSelection(Key key)
+    private void MoveActiveListingSelection(Key key) =>
+        MoveActiveListingSelection(key, ModifierKeys.None);
+
+    private void MoveActiveListingSelection(Key key, ModifierKeys modifiers)
     {
         var iconView = IconViewOf(ActivePane);
-        var items = _settings.ViewMode == ViewMode.Icons ? iconView.Items : _activeGrid.Items;
+        var icons = _settings.ViewMode == ViewMode.Icons;
+        var items = icons ? iconView.Items : _activeGrid.Items;
         if (items.Count == 0)
         {
             FocusActiveListing();
             return;
         }
 
-        var current = _settings.ViewMode == ViewMode.Icons
-            ? iconView.SelectedItem
-            : _activeGrid.SelectedItem;
-        var currentIndex = current is null ? -1 : items.IndexOf(current);
         var lastIndex = items.Count - 1;
+        // Index of the first non-".." entry. Range selection never includes the
+        // parent row (every selection consumer already filters IsParent).
+        var firstSelectable = items[0] is FileItem first && first.IsParent ? Math.Min(1, lastIndex) : 0;
+
+        // The "lead" is the moving end of keyboard navigation. Resolve it from the
+        // tracked item (survives re-sorts) and fall back to the current selection.
+        var current = icons ? iconView.SelectedItem : _activeGrid.SelectedItem;
+        var leadIndex = IndexOfItem(items, _listingLeadItem);
+        if (leadIndex < 0)
+        {
+            leadIndex = IndexOfItem(items, current as FileItem);
+        }
+
+        var step = key switch
+        {
+            Key.Up => -1,
+            Key.PageUp => -10,
+            Key.PageDown => 10,
+            _ => 1, // Down
+        };
+
+        if (modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            ExtendActiveListingSelection(icons, items, leadIndex, firstSelectable, lastIndex, step);
+            return;
+        }
+
+        if (modifiers.HasFlag(ModifierKeys.Control))
+        {
+            MoveActiveListingLead(icons, items, leadIndex, firstSelectable, lastIndex, step);
+            return;
+        }
 
         int nextIndex;
-        if (currentIndex < 0)
+        if (leadIndex < 0)
         {
             // No selection (e.g. just after a rename or focus loss): land on
             // the first item (which is always the ".." parent row when one
             // exists).
             nextIndex = 0;
         }
-        else if (key == Key.Up && currentIndex == 0)
+        else if (key == Key.Up && leadIndex == 0)
         {
             // ".." + Up wraps to the bottom of the listing.
             nextIndex = lastIndex;
         }
-        else if (key == Key.Down && currentIndex == lastIndex)
+        else if (key == Key.Down && leadIndex == lastIndex)
         {
             // Last entry + Down wraps to "..".
             nextIndex = 0;
         }
         else
         {
-            var step = key switch
-            {
-                Key.Up => -1,
-                Key.PageUp => -10,
-                Key.PageDown => 10,
-                _ => 1, // Down
-            };
-            nextIndex = Math.Clamp(currentIndex + step, 0, lastIndex);
+            nextIndex = Math.Clamp(leadIndex + step, 0, lastIndex);
         }
 
         if (items[nextIndex] is not FileItem item)
@@ -369,9 +394,233 @@ public partial class MainWindow
             _syncingSelection = false;
         }
 
+        // A modifier-free move re-anchors: a following Shift+Arrow grows the
+        // range from here (Explorer behaviour).
+        _listingAnchorItem = item;
+        _listingLeadItem = item;
+
         FocusSelectedListingItemNow(_activeGrid, iconView, item);
         SchedulePreviewUpdate(item);
         UpdateStatus();
+    }
+
+    /// <summary>
+    /// Shift+Arrow contiguous range selection, Explorer style: a fixed anchor
+    /// plus a moving lead, no wrap-around, parent ("..") row excluded. Keeps the
+    /// grid and icon view selections in sync so a view-mode switch is seamless.
+    /// </summary>
+    private void ExtendActiveListingSelection(bool icons, ItemCollection items, int leadIndex, int firstSelectable, int lastIndex, int step)
+    {
+        var iconView = IconViewOf(ActivePane);
+
+        // Anchor the range. If the stored anchor was lost (a mouse click moved
+        // the selection elsewhere, or the folder reloaded) re-anchor on the
+        // current lead so the range starts where the user actually is.
+        var anchorIndex = IndexOfItem(items, _listingAnchorItem);
+        var anchorSelected = _listingAnchorItem is not null &&
+            (icons ? iconView.SelectedItems : _activeGrid.SelectedItems).Contains(_listingAnchorItem);
+        if (anchorIndex < 0 || !anchorSelected)
+        {
+            anchorIndex = leadIndex < 0 ? firstSelectable : Math.Clamp(leadIndex, firstSelectable, lastIndex);
+            _listingAnchorItem = items[anchorIndex] as FileItem;
+        }
+
+        var baseIndex = leadIndex < 0 ? anchorIndex : leadIndex;
+        var newLead = Math.Clamp(baseIndex + step, firstSelectable, lastIndex);
+
+        var lo = Math.Min(anchorIndex, newLead);
+        var hi = Math.Max(anchorIndex, newLead);
+
+        _syncingSelection = true;
+        try
+        {
+            _activeGrid.SelectedItems.Clear();
+            iconView.SelectedItems.Clear();
+            for (var i = lo; i <= hi; i++)
+            {
+                if (items[i] is not FileItem fi || fi.IsParent)
+                {
+                    continue;
+                }
+                _activeGrid.SelectedItems.Add(fi);
+                iconView.SelectedItems.Add(fi);
+            }
+
+            if (items[newLead] is FileItem leadItem)
+            {
+                _activeGrid.ScrollIntoView(leadItem);
+                iconView.ScrollIntoView(leadItem);
+            }
+        }
+        finally
+        {
+            _syncingSelection = false;
+        }
+
+        _listingLeadItem = items[newLead] as FileItem;
+        if (_listingLeadItem is not null)
+        {
+            FocusListingItemContainer(icons, _listingLeadItem);
+        }
+
+        SchedulePreviewUpdate((icons ? iconView.SelectedItems : _activeGrid.SelectedItems).OfType<FileItem>());
+        UpdateStatus();
+    }
+
+    /// <summary>
+    /// Moves the keyboard focus rectangle (DataGrid current cell / icon
+    /// container) onto <paramref name="item"/> without touching the selection
+    /// set. Used as the moving lead of a Shift range so the focused row is the
+    /// one the next Shift+Arrow extends from.
+    /// </summary>
+    private void FocusListingItemContainer(bool icons, FileItem item)
+    {
+        if (icons)
+        {
+            var iconView = IconViewOf(ActivePane);
+            iconView.UpdateLayout();
+            if (iconView.ItemContainerGenerator.ContainerFromItem(item) is ListBoxItem container)
+            {
+                FocusElement(container);
+                return;
+            }
+            FocusElement(iconView);
+            return;
+        }
+
+        var grid = _activeGrid;
+        var nameColumn = grid == LeftGrid ? LeftNameColumn : RightNameColumn;
+        grid.CurrentCell = new DataGridCellInfo(item, nameColumn);
+        grid.ScrollIntoView(item, nameColumn);
+        grid.UpdateLayout();
+        if (grid.ItemContainerGenerator.ContainerFromItem(item) is DataGridRow row)
+        {
+            var presenter = FindVisualChild<DataGridCellsPresenter>(row);
+            if (presenter?.ItemContainerGenerator.ContainerFromIndex(nameColumn.DisplayIndex) is DataGridCell cell)
+            {
+                FocusElement(cell);
+                return;
+            }
+            FocusElement(row);
+            return;
+        }
+        FocusElement(grid);
+    }
+
+    private static int IndexOfItem(ItemCollection items, FileItem? item)
+    {
+        if (item is null)
+        {
+            return -1;
+        }
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (ReferenceEquals(items[i], item))
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// Ctrl+Arrow: moves the keyboard focus (lead) without touching the
+    /// selection, Explorer style. Pair with Ctrl+Space to toggle the focused
+    /// item. The ".." row is skipped (it is never selectable).
+    /// </summary>
+    private void MoveActiveListingLead(bool icons, ItemCollection items, int leadIndex, int firstSelectable, int lastIndex, int step)
+    {
+        var baseIndex = leadIndex < 0 ? firstSelectable : Math.Clamp(leadIndex, firstSelectable, lastIndex);
+        var newLead = Math.Clamp(baseIndex + step, firstSelectable, lastIndex);
+        if (items[newLead] is not FileItem item)
+        {
+            return;
+        }
+
+        _listingLeadItem = item;
+        if (icons)
+        {
+            IconViewOf(ActivePane).ScrollIntoView(item);
+        }
+        else
+        {
+            _activeGrid.ScrollIntoView(item);
+        }
+        FocusListingItemContainer(icons, item);
+    }
+
+    /// <summary>
+    /// Ctrl+Space: toggles the focused (lead) item in/out of the selection set
+    /// and re-anchors the range there, mirroring Explorer.
+    /// </summary>
+    private void ToggleActiveListingLeadSelection()
+    {
+        var icons = _settings.ViewMode == ViewMode.Icons;
+        var iconView = IconViewOf(ActivePane);
+        var items = icons ? iconView.Items : _activeGrid.Items;
+
+        var leadIndex = IndexOfItem(items, _listingLeadItem);
+        if (leadIndex < 0)
+        {
+            var sel = icons ? iconView.SelectedItem : _activeGrid.SelectedItem;
+            leadIndex = IndexOfItem(items, sel as FileItem);
+        }
+        if (leadIndex < 0 || items[leadIndex] is not FileItem item || item.IsParent)
+        {
+            return;
+        }
+
+        var inGrid = _activeGrid.SelectedItems.Contains(item);
+        var inIcon = iconView.SelectedItems.Contains(item);
+        var isSelected = icons ? inIcon : inGrid;
+
+        _syncingSelection = true;
+        try
+        {
+            if (isSelected)
+            {
+                _activeGrid.SelectedItems.Remove(item);
+                iconView.SelectedItems.Remove(item);
+            }
+            else
+            {
+                if (!inGrid)
+                {
+                    _activeGrid.SelectedItems.Add(item);
+                }
+                if (!inIcon)
+                {
+                    iconView.SelectedItems.Add(item);
+                }
+            }
+        }
+        finally
+        {
+            _syncingSelection = false;
+        }
+
+        _listingAnchorItem = item;
+        _listingLeadItem = item;
+        FocusListingItemContainer(icons, item);
+        SchedulePreviewUpdate((icons ? iconView.SelectedItems : _activeGrid.SelectedItems).OfType<FileItem>());
+        UpdateStatus();
+    }
+
+    /// <summary>
+    /// The item the single-target keyboard actions (Enter / F2) should act on:
+    /// the lead/focus item when it is still in the listing (it diverges from the
+    /// selection only while Ctrl+Arrow is moving the focus), otherwise the
+    /// current selection.
+    /// </summary>
+    private FileItem? ActiveListingCurrentItem()
+    {
+        var icons = _settings.ViewMode == ViewMode.Icons;
+        var items = icons ? IconViewOf(ActivePane).Items : _activeGrid.Items;
+        if (IndexOfItem(items, _listingLeadItem) >= 0)
+        {
+            return _listingLeadItem;
+        }
+        return icons ? IconViewOf(ActivePane).SelectedItem as FileItem : _activeGrid.SelectedItem as FileItem;
     }
 
     /// <summary>

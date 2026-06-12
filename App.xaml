@@ -304,6 +304,17 @@
                     <Setter Property="Background" Value="{DynamicResource TfxSelection}" />
                     <Setter Property="Foreground" Value="{DynamicResource TfxSelectionForeground}" />
                 </Trigger>
+                <!-- Keyboard focus on an unselected cell: the Ctrl+Arrow lead
+                     cursor. Drawn as an outline so it reads distinctly from a
+                     filled selection. -->
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="IsKeyboardFocusWithin" Value="True" />
+                        <Condition Property="IsSelected" Value="False" />
+                    </MultiTrigger.Conditions>
+                    <Setter Property="BorderBrush" Value="{DynamicResource TfxFocusBorder}" />
+                    <Setter Property="BorderThickness" Value="1" />
+                </MultiTrigger>
             </Style.Triggers>
         </Style>
 
@@ -418,6 +429,15 @@
                     <Setter Property="Background" Value="{DynamicResource TfxSelection}" />
                     <Setter Property="Foreground" Value="{DynamicResource TfxSelectionForeground}" />
                 </Trigger>
+                <!-- Ctrl+Arrow lead cursor on an unselected icon item. -->
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="IsKeyboardFocusWithin" Value="True" />
+                        <Condition Property="IsSelected" Value="False" />
+                    </MultiTrigger.Conditions>
+                    <Setter Property="BorderBrush" Value="{DynamicResource TfxFocusBorder}" />
+                    <Setter Property="BorderThickness" Value="1" />
+                </MultiTrigger>
             </Style.Triggers>
         </Style>
 
