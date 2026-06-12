@@ -153,6 +153,16 @@ public partial class MainWindow
 
     private void Columns_Click(object sender, RoutedEventArgs e)
     {
+        OpenSettingsMenu();
+    }
+
+    /// <summary>
+    /// Opens the column visibility / order popup anchored under the settings
+    /// button. Previously the toolbar button's direct action; now reached via the
+    /// settings menu's "detail items" entry.
+    /// </summary>
+    private void OpenColumnsPopup()
+    {
         if ((DateTime.Now - _columnsClosedAt).TotalMilliseconds < 200)
         {
             return;

@@ -314,7 +314,7 @@ public partial class MainWindow : Window
         LoadImagesButton.ToolTip = Loc.F("Load external images for this preview ({0})", ShortcutText("loadExternalImages"));
         SplitButton.ToolTip = Loc.F("Toggle split pane ({0})", ShortcutText("toggleSplit"));
         SwapPanesButton.ToolTip = Loc.F("Swap left and right panes ({0})", ShortcutText("swapPanes"));
-        ColumnsButton.ToolTip = Loc.T("Columns");
+        ColumnsButton.ToolTip = Loc.T("Settings");
         TerminalPaneButton.ToolTip = Loc.F("Toggle terminal pane ({0})", ShortcutText("toggleTerminal"));
         TerminalInterruptButton.ToolTip = Loc.T("Interrupt (send Ctrl+C)");
         TerminalQuitButton.ToolTip = Loc.T("Quit (send Ctrl+\\)");

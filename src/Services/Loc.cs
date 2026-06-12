@@ -173,5 +173,17 @@ internal static class Loc
         ["Path"] = "パス",
         ["Type the 2-letter key to jump · Esc to close"] = "2文字キーで移動 · Esc で閉じる",
         ["Pending: {0}_ · Esc to close"] = "入力中: {0}_ · Esc で閉じる",
+
+        // Settings menu + feature list (機能一覧)
+        ["Settings"] = "設定",
+        ["Detail items"] = "詳細項目",
+        ["Feature list"] = "機能一覧",
+        ["Item"] = "項目",
+        ["Description"] = "説明",
+        ["No description"] = "（説明なし）",
+        ["(unbound)"] = "（未割り当て）",
+        ["Built-in commands"] = "組み込みコマンド",
+        ["User commands"] = "ユーザー定義コマンド",
+        ["Close (Esc)"] = "閉じる (Esc)",
     };
 }
