@@ -94,6 +94,7 @@ public partial class MainWindow : Window
 
         LoadSettings();
         LoadConfig();
+        ValidateCommandPaletteActions();
         ApplyLocalization();
         PerformanceTrace.SetEnabled(_settings.ShowPerformanceLogs);
         InitializeFileColumns();

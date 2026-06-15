@@ -59,6 +59,7 @@ public partial class MainWindow
             ["addBookmark"] = ("Add the current folder to bookmarks", "現在のフォルダーをブックマークに追加"),
             ["pathToClipboard"] = ("Copy the current path to the clipboard", "現在のパスをクリップボードにコピー"),
             ["openBookmarkDialog"] = ("Jump to a bookmark (quick jump)", "ブックマークへジャンプ（クイック ジャンプ）"),
+            ["commandPalette"] = ("Open the command palette", "コマンド パレットを開く"),
         };
 
     /// <summary>

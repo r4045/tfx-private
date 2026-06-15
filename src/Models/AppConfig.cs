@@ -851,6 +851,7 @@ public sealed class AppConfig
         syncCwd = "ctrl+shift+j"
         quit = "ctrl+q"
         openBookmarkDialog = "f8"
+        commandPalette = "ctrl+p"
 
         # Startup layout:
         # [startup]

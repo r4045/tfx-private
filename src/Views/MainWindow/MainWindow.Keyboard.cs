@@ -48,6 +48,7 @@ public partial class MainWindow
         ["addBookmark"] = "ctrl+d",
         ["pathToClipboard"] = "f9",
         ["openBookmarkDialog"] = "f8",
+        ["commandPalette"] = "ctrl+p",
     };
 
     private bool InArchiveContext => ArchivePath.Contains(GetCurrentPath(_activeGrid));
@@ -248,6 +249,11 @@ public partial class MainWindow
         else if (IsShortcut("openBookmarkDialog", e))
         {
             OpenBookmarkQuickJump();
+            e.Handled = true;
+        }
+        else if (IsShortcut("commandPalette", e))
+        {
+            OpenCommandPalette();
             e.Handled = true;
         }
         else if (IsShortcut("toggleHidden", e))

@@ -186,5 +186,11 @@ internal static class Loc
         ["Built-in commands"] = "組み込みコマンド",
         ["User commands"] = "ユーザー定義コマンド",
         ["Close (Esc)"] = "閉じる (Esc)",
+
+        // Command palette (commandPalette / Ctrl+P)
+        ["Command palette"] = "コマンド パレット",
+        ["Type to filter · ↑↓ to move · Enter to run · Esc to close"] = "入力で絞り込み · ↑↓ で移動 · Enter で実行 · Esc で閉じる",
+        ["No matching commands"] = "一致するコマンドがありません",
+        ["No commands available"] = "利用できるコマンドがありません",
     };
 }
