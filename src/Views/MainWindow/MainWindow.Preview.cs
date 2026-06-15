@@ -96,8 +96,14 @@ public partial class MainWindow
 
         InfoPreview.Text = $"{item.Name}\n{item.FullPath}\n{item.Kind}\n{item.SizeText}\n{Loc.F("Modified: {0}", item.ModifiedText)}\n{Loc.F("Created: {0}", item.CreatedText)}\n{Loc.F("Owner: {0}", item.OwnerText)}\n{Loc.F("Attributes: {0}", item.AttributeText)}";
 
-        if (item.IsDirectory || item.IsParent)
+        if (item.IsParent)
         {
+            return;
+        }
+
+        if (item.IsDirectory)
+        {
+            await ShowDirectoryListingAsync(item.FullPath, cts);
             return;
         }
 
@@ -156,6 +162,72 @@ public partial class MainWindow
 
     private static bool IsCsvLike(string extension) =>
         extension is ".csv" or ".tsv";
+
+    private const int DirectoryPreviewCap = 1000;
+
+    /// <summary>
+    /// Renders a folder's immediate contents as a lightweight name-only peek:
+    /// directories (trailing '/') first, then files. Reuses the main-pane
+    /// enumerator off the UI thread so slow / UNC shares never block input.
+    /// </summary>
+    private async Task ShowDirectoryListingAsync(string path, CancellationTokenSource cts)
+    {
+        try
+        {
+            // No icons / owner: a peek doesn't need per-entry shell calls.
+            var options = new DirectoryLoadOptions(ShowHidden, false, false, false);
+            var items = await Task.Run(() => DirectoryLoader.Load(path, options, cts.Token), cts.Token);
+            if (cts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            TextPreview.Text = BuildDirectoryListing(items);
+            TextPreview.Visibility = Visibility.Visible;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            InfoPreview.Text += $"\n{Loc.F("Preview error: {0}", ex.Message)}";
+        }
+    }
+
+    private static string BuildDirectoryListing(IReadOnlyList<FileItem> items)
+    {
+        // DirectoryLoader prepends the parent ("..") for navigation; it's noise
+        // in a peek, so drop it. Dir-before-file ordering is already guaranteed
+        // by DirectoryLoader, so no re-sort here.
+        var entries = items.Where(i => !i.IsParent).ToArray();
+        if (entries.Length == 0)
+        {
+            return Loc.T("(empty)");
+        }
+
+        var sb = new System.Text.StringBuilder();
+        var shown = Math.Min(entries.Length, DirectoryPreviewCap);
+        for (var i = 0; i < shown; i++)
+        {
+            if (i > 0)
+            {
+                sb.AppendLine();
+            }
+            sb.Append(entries[i].Name);
+            if (entries[i].IsDirectory)
+            {
+                sb.Append('/');
+            }
+        }
+
+        if (entries.Length > shown)
+        {
+            sb.AppendLine();
+            sb.Append(Loc.F("(+{0} more)", entries.Length - shown));
+        }
+
+        return sb.ToString();
+    }
 
     private static string BuildMultiSelectionSummary(IReadOnlyList<FileItem> selection)
     {
