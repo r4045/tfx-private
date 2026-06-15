@@ -21,6 +21,7 @@ public sealed class AppConfig
     public Dictionary<string, AppShortcut> Shortcuts { get; } = new(StringComparer.OrdinalIgnoreCase);
     public TerminalConfig Terminal { get; } = new();
     public Dictionary<string, string> OpenWith { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public ExecDropConfig ExecDrop { get; } = new();
     public StartupConfig Startup { get; } = new();
     public List<UserCommand> Commands { get; } = [];
     public List<Bookmark> Bookmarks { get; } = [];
@@ -189,6 +190,40 @@ public sealed class AppConfig
                     else
                     {
                         config.Errors.Add($"Invalid openWith value for {key}: {value}");
+                    }
+                    break;
+                case "execdrop":
+                    if (key.Equals("direct", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (TryParseStringArray(value, out var execExts))
+                        {
+                            config.ExecDrop.Direct.Clear();
+                            foreach (var ext in execExts.Select(NormalizeExtension).Where(x => x.Length > 0))
+                            {
+                                if (!config.ExecDrop.Direct.Contains(ext))
+                                {
+                                    config.ExecDrop.Direct.Add(ext);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            config.Errors.Add($"Invalid execDrop direct: {value}");
+                        }
+                    }
+                    else
+                    {
+                        config.Errors.Add($"Unknown [execDrop] key: {key}");
+                    }
+                    break;
+                case "execdrop.interpreters":
+                    if (TryParseStringArray(value, out var execTokens) && execTokens.Count > 0)
+                    {
+                        config.ExecDrop.Interpreters[NormalizeExtension(key)] = execTokens;
+                    }
+                    else
+                    {
+                        config.Errors.Add($"Invalid execDrop interpreter for {key}: {value}");
                     }
                     break;
                 case "startup":
@@ -879,6 +914,17 @@ public sealed class AppConfig
         # md = "code"
         # pdf = "C:\\Program Files\\SumatraPDF\\SumatraPDF.exe"
         #
+        # Drag-and-drop a file onto an executable / script row to run it with the
+        # dropped file(s) as arguments. Nothing here = the gesture is off (a drop
+        # onto a file falls back to the normal copy / move). `direct` files run
+        # as-is (.bat/.cmd via cmd.exe, .exe/.com directly); `interpreters` map an
+        # extension to a launcher invoked as: <prefix...> <script> <dropped...>.
+        # [execDrop]
+        # direct = [".exe", ".com", ".bat", ".cmd"]
+        # [execDrop.interpreters]
+        # ".py"  = ["py"]
+        # ".ps1" = ["pwsh", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]
+        #
         # User-defined commands shown in the file-pane context menu. Each runs an
         # external program (fire-and-forget). Tokens: {path} (single item),
         # {paths} (all selected, quoted), {dir} (parent folder). Filters:
@@ -951,6 +997,33 @@ public sealed class StartupConfig
     public string? FolderTree { get; set; }
     public List<string> RightFolders { get; set; } = [];
     public WindowGeometry? Geometry { get; set; }
+}
+
+/// <summary>
+/// Drag-and-drop-to-run configuration (<c>[execDrop]</c>). When a file is
+/// dropped onto a listing row whose extension matches, the row's file is
+/// launched with the dropped path(s) as trailing arguments instead of being a
+/// copy / move target. No entries = the feature is off (there is no built-in
+/// fallback, by design — everything runnable is opt-in via config).
+/// </summary>
+public sealed class ExecDropConfig
+{
+    /// <summary>
+    /// Extensions (normalized, no dot) launched directly: the dropped paths
+    /// become the target's arguments. Batch files (.bat/.cmd) are run through
+    /// cmd.exe /c (CreateProcess can't start a batch file directly); real
+    /// executables (.exe/.com) start directly.
+    /// </summary>
+    public List<string> Direct { get; } = [];
+
+    /// <summary>
+    /// Per-extension interpreter command (normalized ext, no dot → token list).
+    /// A drop runs <c>prefix… script droppedPaths…</c> — e.g. ".py" → ["py"]
+    /// runs <c>py script.py file</c>; ".ps1" → ["pwsh","-NoProfile","-File"]
+    /// runs <c>pwsh -NoProfile -File script.ps1 file</c>. Interpreters take
+    /// priority over <see cref="Direct"/> when an extension is in both.
+    /// </summary>
+    public Dictionary<string, List<string>> Interpreters { get; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>

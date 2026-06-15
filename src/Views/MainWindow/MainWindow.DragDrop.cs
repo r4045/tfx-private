@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -219,17 +220,31 @@ public partial class MainWindow
             return;
         }
 
+        var paths = (string[])e.Data.GetData(DataFormats.FileDrop);
+        var isRightDrag = _nativeRightDragInProgress || e.Data.GetDataPresent(TfxRightDragFormat);
+
+        // Drop onto a configured executable / script row -> run it with the
+        // dropped paths as arguments instead of the normal copy / move. Left-
+        // drag only: a right-drag keeps the Copy / Move / Shortcut menu below.
+        if (!isRightDrag &&
+            TryResolveExecDropTarget(e.OriginalSource as DependencyObject, out var execTarget, out var execPrefix))
+        {
+            e.Handled = true;
+            RunExecDropTarget(execTarget, execPrefix, paths);
+            e.Effects = DragDropEffects.None;
+            return;
+        }
+
         var destination = ResolveDropDestination(view, e);
         if (ArchivePath.Contains(destination))
         {
             e.Handled = true;
             return;
         }
-        var paths = (string[])e.Data.GetData(DataFormats.FileDrop);
 
         // Right-button drag started from a tfx pane: pop the Copy / Move /
         // Shortcut / Cancel menu and act on the user's choice.
-        if (_nativeRightDragInProgress || e.Data.GetDataPresent(TfxRightDragFormat))
+        if (isRightDrag)
         {
             e.Handled = true;
             var allowMoveLink = !paths.Any(ArchivePath.Contains);
@@ -374,6 +389,21 @@ public partial class MainWindow
             return;
         }
 
+        // Hovering a configured executable / script row: signal "drop to run"
+        // with a distinct (Link) cursor and a status-bar hint, so releasing here
+        // never looks like an ordinary copy / move. Right-drag is excluded so the
+        // Copy / Move / Shortcut menu stays reachable over any row.
+        var isRightDrag = _nativeRightDragInProgress || e.Data.GetDataPresent(TfxRightDragFormat);
+        if (!isRightDrag &&
+            e.Data.GetDataPresent(DataFormats.FileDrop) &&
+            TryResolveExecDropTarget(e.OriginalSource as DependencyObject, out var hoverTarget, out _))
+        {
+            e.Effects = DragDropEffects.Link;
+            e.Handled = true;
+            SetStatus(Loc.F("\u25b6 Run {0} with the dropped file(s)", Path.GetFileName(hoverTarget)));
+            return;
+        }
+
         var destination = ResolveDropDestination(view, e);
         if (ArchivePath.Contains(destination))
         {
@@ -481,5 +511,119 @@ public partial class MainWindow
 
         result.AddRange(paths.Where(p => !ArchivePath.Contains(p)));
         return result.ToArray();
+    }
+
+    /// <summary>
+    /// Resolves the row under the drop / hover point to a configured drop-to-run
+    /// target. Succeeds only for a real file (not a folder, ".." row, or archive
+    /// entry) whose extension is listed in <c>[execDrop] direct</c> or
+    /// <c>[execDrop.interpreters]</c>. On success <paramref name="targetPath"/>
+    /// is the file to run and <paramref name="launchPrefix"/> is the interpreter
+    /// token list (empty for a direct executable). Interpreters win when an
+    /// extension is configured in both lists.
+    /// </summary>
+    private bool TryResolveExecDropTarget(DependencyObject? source, out string targetPath, out List<string> launchPrefix)
+    {
+        targetPath = "";
+        launchPrefix = [];
+
+        var item = FindVisualAncestor<DataGridRow>(source)?.Item as FileItem
+                   ?? FindVisualAncestor<ListBoxItem>(source)?.Content as FileItem;
+        if (item is null || item.IsParent || item.IsDirectory || ArchivePath.Contains(item.FullPath))
+        {
+            return false;
+        }
+
+        var ext = AppConfig.NormalizeExtension(Path.GetExtension(item.FullPath));
+        if (ext.Length == 0)
+        {
+            return false;
+        }
+
+        // Interpreter mapping is the more specific intent, so it wins over direct.
+        if (_config.ExecDrop.Interpreters.TryGetValue(ext, out var prefix) && prefix.Count > 0)
+        {
+            targetPath = item.FullPath;
+            launchPrefix = prefix;
+            return true;
+        }
+        if (_config.ExecDrop.Direct.Contains(ext))
+        {
+            targetPath = item.FullPath;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Launches a drop-to-run target with the dropped paths as trailing
+    /// arguments. The target's own folder is the working directory, so a script
+    /// using a path relative to itself (cmd's %~dp0) resolves the way the user
+    /// expects. Arguments go through <see cref="ProcessStartInfo.ArgumentList"/>
+    /// so each path is quoted per Windows rules and a cmd metacharacter in a file
+    /// name can't break out into a second command. Batch files run via cmd.exe /c
+    /// (CreateProcess can't start a .bat directly); .exe/.com start directly;
+    /// interpreter targets run as &lt;prefix&gt; &lt;script&gt; &lt;paths&gt;. The
+    /// target itself and any archive-virtual paths are filtered out of the
+    /// arguments. UseShellExecute is false, so file associations and manifest UAC
+    /// elevation do not apply: an executable that demands elevation fails with a
+    /// status message rather than launching.
+    /// </summary>
+    private void RunExecDropTarget(string targetPath, List<string> launchPrefix, string[] droppedPaths)
+    {
+        var args = droppedPaths
+            .Where(p => !ArchivePath.Contains(p) && !FsHelpers.SamePath(p, targetPath))
+            .ToArray();
+        if (args.Length == 0)
+        {
+            SetStatus(Loc.F("Nothing to pass to {0}", Path.GetFileName(targetPath)));
+            return;
+        }
+
+        var psi = new ProcessStartInfo
+        {
+            UseShellExecute = false,
+            WorkingDirectory = Path.GetDirectoryName(targetPath) ?? GetCurrentPath(_activeGrid),
+        };
+
+        var ext = AppConfig.NormalizeExtension(Path.GetExtension(targetPath));
+        if (launchPrefix.Count > 0)
+        {
+            psi.FileName = launchPrefix[0];
+            for (var i = 1; i < launchPrefix.Count; i++)
+            {
+                psi.ArgumentList.Add(launchPrefix[i]);
+            }
+            psi.ArgumentList.Add(targetPath);
+        }
+        else if (ext is "bat" or "cmd")
+        {
+            // A batch file is not a PE image, so CreateProcess can't run it.
+            // Route through cmd.exe by its absolute System32 path so a cmd.exe
+            // planted on PATH / in the CWD can't be run in its place.
+            var system32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
+            psi.FileName = Path.Combine(system32, "cmd.exe");
+            psi.ArgumentList.Add("/c");
+            psi.ArgumentList.Add(targetPath);
+        }
+        else
+        {
+            psi.FileName = targetPath;
+        }
+
+        foreach (var arg in args)
+        {
+            psi.ArgumentList.Add(arg);
+        }
+
+        try
+        {
+            Process.Start(psi);
+            SetStatus(Loc.F("Ran {0} with {1} file(s)", Path.GetFileName(targetPath), args.Length));
+        }
+        catch (Exception ex)
+        {
+            SetStatus(Loc.F("Run failed: {0}", ex.Message));
+        }
     }
 }
