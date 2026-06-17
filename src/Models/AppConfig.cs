@@ -23,6 +23,13 @@ public sealed class AppConfig
     public Dictionary<string, string> OpenWith { get; } = new(StringComparer.OrdinalIgnoreCase);
     public ExecDropConfig ExecDrop { get; } = new();
     public StartupConfig Startup { get; } = new();
+
+    // New-tab insertion position ([tabs] newTabPosition). "rightmost" (default)
+    // appends the new tab to the end of the strip; "afterActive" inserts it
+    // right after the current tab (the former behavior). Applies to both Ctrl+T
+    // and middle-click-to-open-folder, which share OpenNewTab. Stored lowercased
+    // to match the [startup] enum-string convention.
+    public string NewTabPosition { get; set; } = "rightmost";
     public List<UserCommand> Commands { get; } = [];
     public List<Bookmark> Bookmarks { get; } = [];
     public List<string> Errors { get; } = [];
@@ -228,6 +235,25 @@ public sealed class AppConfig
                     break;
                 case "startup":
                     ParseStartup(config, key, value);
+                    break;
+                case "tabs":
+                    if (key.Equals("newTabPosition", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (TryParseString(value, out var tabPos) &&
+                            (tabPos.Equals("rightmost", StringComparison.OrdinalIgnoreCase) ||
+                             tabPos.Equals("afterActive", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            config.NewTabPosition = tabPos.ToLowerInvariant();
+                        }
+                        else
+                        {
+                            config.Errors.Add($"Invalid newTabPosition: {value}");
+                        }
+                    }
+                    else
+                    {
+                        config.Errors.Add($"Unknown [tabs] key: {key}");
+                    }
                     break;
                 case "commands":
                     if (command is not null)
@@ -897,6 +923,13 @@ public sealed class AppConfig
         # rightFolder = "~/Downloads"
         # rightFolders = ["~/Downloads", "~/Documents"]
         # geometry = "1200x800+100+50"   # [WxH][+X+Y]; -X/-Y = from right/bottom
+        #
+        # New-tab placement: where Ctrl+T and middle-click-to-open-folder put the
+        # new tab. "rightmost" (default) appends it to the end of the tab strip so
+        # the newest tab is always last; "afterActive" inserts it next to the
+        # current tab.
+        # [tabs]
+        # newTabPosition = "rightmost"   # rightmost | afterActive
         #
         # External terminal (toolbar / openTerminal) and built-in pane:
         # [terminal]

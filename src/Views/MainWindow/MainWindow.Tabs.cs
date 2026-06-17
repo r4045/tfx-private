@@ -132,7 +132,12 @@ public partial class MainWindow
     {
         RememberActiveTabSelection(pane);
         var tabs = TabsOf(pane);
-        var insertAt = ActiveTabIndexOf(pane) + 1;
+        // Placement is config-driven ([tabs] newTabPosition): "rightmost"
+        // (default) appends so the newest tab is always last and easy to spot;
+        // "afterActive" inserts next to the current tab (the former behavior).
+        var insertAt = _config.NewTabPosition.Equals("afterActive", StringComparison.OrdinalIgnoreCase)
+            ? ActiveTabIndexOf(pane) + 1
+            : tabs.Count;
         tabs.Insert(insertAt, new PaneTab(path));
         SetActiveTabIndex(pane, insertAt);
         ActivateTab(pane, insertAt);
