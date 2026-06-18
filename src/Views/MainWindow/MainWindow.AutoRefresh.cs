@@ -151,8 +151,25 @@ public partial class MainWindow
             return;
         }
 
-        FileSystemEventHandler change = (_, _) => Dispatcher.BeginInvoke(() => KickDebounce(pane));
-        RenamedEventHandler rename = (_, _) => Dispatcher.BeginInvoke(() => KickDebounce(pane));
+        // The repo .git directory is rewritten constantly by external tooling
+        // (TortoiseGit's TGitCache, git's fsmonitor daemon, IDE source-control
+        // providers, and our own `git status`). Those writes bump .git's mtime,
+        // which a non-recursive watcher reports as a LastWrite change on the
+        // ".git" child entry. Reacting to it triggers a needless reload + git
+        // status, which itself rewrites .git/index and re-fires the watcher — a
+        // self-sustaining churn loop. Real working-tree changes arrive as
+        // separate events for the actual files, so dropping ".git" entry events
+        // loses no genuine refresh.
+        FileSystemEventHandler change = (_, e) =>
+        {
+            if (IsGitDirEntry(e.Name)) return;
+            Dispatcher.BeginInvoke(() => KickDebounce(pane));
+        };
+        RenamedEventHandler rename = (_, e) =>
+        {
+            if (IsGitDirEntry(e.Name) || IsGitDirEntry(e.OldName)) return;
+            Dispatcher.BeginInvoke(() => KickDebounce(pane));
+        };
         ErrorEventHandler error = (_, _) => Dispatcher.BeginInvoke(() => UpdateWatcherForPane(pane));
 
         watcher.Changed += change;
@@ -176,6 +193,9 @@ public partial class MainWindow
 
     private static bool IsLikelyNetworkPath(string path) =>
         path.StartsWith(@"\\", StringComparison.Ordinal);
+
+    private static bool IsGitDirEntry(string? name) =>
+        string.Equals(name, ".git", StringComparison.OrdinalIgnoreCase);
 
     private void SetWatcher(Pane pane, FileSystemWatcher? watcher)
     {
