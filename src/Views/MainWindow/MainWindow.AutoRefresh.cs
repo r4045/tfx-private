@@ -57,7 +57,23 @@ public partial class MainWindow
         };
         _periodicTimer.Start();
 
-        Activated += (_, _) => _windowActive = true;
+        // The pane watcher deliberately ignores .git entry changes, so
+        // commit/push/checkout/pull (which touch only .git, not the working
+        // tree) do not auto-refresh while TFX is focused. Refresh the visible
+        // panes on window activation to pick those up when the user returns
+        // from an external git operation. ReloadDiffAsync re-runs the directory
+        // diff and git status, so timestamps and badges re-sync without F5.
+        // Its in-flight / busy guards make the redundant call on dialog-close
+        // and startup cheap and safe.
+        Activated += (_, _) =>
+        {
+            _windowActive = true;
+            _ = ReloadDiffAsync(LeftGrid);
+            if (RightPaneColumn.Width.Value > 0)
+            {
+                _ = ReloadDiffAsync(RightGrid);
+            }
+        };
         Deactivated += (_, _) => _windowActive = false;
         StateChanged += (_, _) =>
         {
