@@ -128,13 +128,34 @@ public partial class MainWindow
     private void NewTabInActivePane()
     {
         var pane = ActivePane;
-        OpenNewTab(pane, PathOf(pane));
+        // The explicit new-tab command duplicates the current folder on purpose,
+        // so it opts out of the same-folder de-duplication below (otherwise it
+        // would always just re-focus the current tab and appear to do nothing).
+        OpenNewTab(pane, PathOf(pane), focusExisting: false);
     }
 
-    private void OpenNewTab(Pane pane, string path)
+    private void OpenNewTab(Pane pane, string path, bool focusExisting = true)
     {
-        RememberActiveTabSelection(pane);
         var tabs = TabsOf(pane);
+
+        // If the folder is already open in a tab of this pane, focus that tab
+        // instead of opening a duplicate. Skipped for the explicit new-tab
+        // command (focusExisting: false), which is allowed to duplicate.
+        if (focusExisting)
+        {
+            var existing = tabs.FindIndex(t => FsHelpers.SamePath(t.Path, path));
+            if (existing >= 0)
+            {
+                if (existing != ActiveTabIndexOf(pane))
+                {
+                    RememberActiveTabSelection(pane);
+                    ActivateTab(pane, existing);
+                }
+                return;
+            }
+        }
+
+        RememberActiveTabSelection(pane);
         // Placement is config-driven ([tabs] newTabPosition): "rightmost"
         // (default) appends so the newest tab is always last and easy to spot;
         // "afterActive" inserts next to the current tab (the former behavior).
