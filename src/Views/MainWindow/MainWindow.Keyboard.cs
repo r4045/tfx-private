@@ -625,6 +625,29 @@ public partial class MainWindow
     }
 
     /// <summary>
+    /// True when keyboard focus is parked on a control the user would have moved
+    /// to on purpose — the search box, folder tree, built-in terminal, or the
+    /// inactive pane. Lets the post-paste focus watchdog tell "the reload dropped
+    /// focus into limbo" (re-claim it) apart from "the user tabbed away" (leave
+    /// it alone). Anything else — null, the bare window, a detached cell — is
+    /// treated as limbo and re-claimed.
+    /// </summary>
+    private bool IsFocusOnDeliberateTarget()
+    {
+        var focused = Keyboard.FocusedElement as DependencyObject;
+        if (focused is null)
+        {
+            return false;
+        }
+        if (IsInside(focused, SearchBox) || IsInside(focused, FolderTree) || IsInside(focused, Terminal))
+        {
+            return true;
+        }
+        // The inactive pane (the one that isn't the paste destination).
+        return IsInsidePane(focused, isLeft: ActivePane != Pane.Left);
+    }
+
+    /// <summary>
     /// True when an Up / Down press should "adopt" the active listing even though
     /// focus isn't inside it — specifically when nothing is selected there and
     /// focus is somewhere neutral (not the folder tree, search box, terminal, or

@@ -85,7 +85,21 @@ public partial class MainWindow
 
     private void Grid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is DataGrid grid && grid.SelectedItem is FileItem item)
+        if (sender is not DataGrid grid)
+        {
+            return;
+        }
+
+        // A double-click on a column header (the listing's title row) must not
+        // open the current selection. Without this guard it runs OpenItem on
+        // whatever happens to be selected — right after entering a folder that
+        // is the ".." row, so double-clicking the header navigated to the parent.
+        if (FindVisualAncestor<System.Windows.Controls.Primitives.DataGridColumnHeader>(e.OriginalSource as DependencyObject) is not null)
+        {
+            return;
+        }
+
+        if (grid.SelectedItem is FileItem item)
         {
             OpenItem(grid, item);
         }

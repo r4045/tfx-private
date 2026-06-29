@@ -298,31 +298,24 @@ public partial class MainWindow
         // entry.
         Dispatcher.BeginInvoke(FocusActiveListing, DispatcherPriority.ApplicationIdle);
 
-        // The first paste after launch can also lose focus to a one-time lazy
-        // initialization that completes asynchronously *after* the idle callback
-        // above — most likely the preview pane's WebView2 grabbing focus on its
-        // first load (already initialized on later pastes, which is why only the
-        // first fails). Watch briefly and re-claim focus whenever it drifts to
-        // the window or the preview, but never when the user has deliberately
-        // moved it elsewhere (path bar, other pane, ...). Bounded to a handful of
-        // ticks so it stops once focus settles on the listing.
+        // Reload's leading target.Clear() destroys the row that currently holds
+        // keyboard focus; WPF frequently drops focus to null rather than bubbling
+        // it up to a parent. Null focus means every window-level shortcut is dead
+        // (KeyDown has no source element to route from) — which is why Ctrl+1
+        // could not recover it and only a mouse click did. Keep re-claiming focus
+        // until it lands back in the active listing, or until the user has
+        // legitimately parked it on another control (search box, folder tree,
+        // terminal, the other pane). Capped so a stuck reload can't loop forever.
         var refocus = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         var refocusAttempts = 0;
         refocus.Tick += (_, _) =>
         {
             refocusAttempts++;
-            if (!IsFocusInActiveListing())
+            if (!IsFocusInActiveListing() && !IsFocusOnDeliberateTarget())
             {
-                var focused = Keyboard.FocusedElement as DependencyObject;
-                var deliberateMove = focused is not null
-                    && !ReferenceEquals(focused, this)
-                    && !IsInside(focused, HtmlPreview);
-                if (!deliberateMove)
-                {
-                    FocusActiveListing();
-                }
+                FocusActiveListing();
             }
-            if (IsFocusInActiveListing() || refocusAttempts >= 4)
+            if (IsFocusInActiveListing() || IsFocusOnDeliberateTarget() || refocusAttempts >= 15)
             {
                 refocus.Stop();
             }
