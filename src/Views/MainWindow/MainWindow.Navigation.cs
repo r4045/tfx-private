@@ -673,6 +673,13 @@ public partial class MainWindow
             _syncingSelection = false;
         }
 
+        // Re-anchor the keyboard lead on the edge row so a following j / k or
+        // Shift+arrow continues from here, and ActiveListingCurrentItem()
+        // (the Enter / rename target) resolves to the row g / G just moved to.
+        // Mirrors the tail of MoveActiveListingSelection.
+        _listingAnchorItem = item;
+        _listingLeadItem = item;
+
         FocusSelectedListingItemNow(_activeGrid, iconView, item);
         SchedulePreviewUpdate(item);
         UpdateStatus();
