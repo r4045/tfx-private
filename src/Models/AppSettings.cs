@@ -33,6 +33,11 @@ public sealed class AppSettings
     public List<string> RightTabs { get; set; } = [];
     public int LeftActiveTab { get; set; }
     public int RightActiveTab { get; set; }
+    // Indices (into LeftTabs / RightTabs) of the tabs the user pinned, so the
+    // pinned state survives a restart. Indices outside the restored tab set are
+    // ignored. Distinct from PinnedFolders below (sidebar folder pins).
+    public List<int> LeftPinnedTabs { get; set; } = [];
+    public List<int> RightPinnedTabs { get; set; } = [];
     public List<string> PinnedFolders { get; set; } = [];
     // Bookmark groups (config.toml [[bookmarks]]) that are collapsed in the
     // sidebar. Groups not listed here default to expanded.

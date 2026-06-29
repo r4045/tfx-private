@@ -29,6 +29,19 @@ public partial class MainWindow
         var pane0 = PaneOf(grid);
         var tab = ActiveTab(pane0);
         var current = GetCurrentPath(grid);
+
+        // Pinned tab: a user-driven forward navigation to a different folder must
+        // not move the pinned tab. Open the destination in a new tab and switch
+        // to it, leaving the pinned tab fixed at its folder and strip position.
+        // Back / Forward (pushHistory == false) and same-folder reloads fall
+        // through to the normal in-place path below.
+        if (pushHistory && tab.Pinned
+            && !string.Equals(current, path, StringComparison.OrdinalIgnoreCase))
+        {
+            OpenNewTab(pane0, path);
+            return;
+        }
+
         if (pushHistory && IsNavigablePath(current) && !string.Equals(current, path, StringComparison.OrdinalIgnoreCase))
         {
             tab.Back.Add(current);

@@ -37,6 +37,7 @@ public partial class MainWindow
         ["selectAll"] = "ctrl+a",
         ["newTab"] = "ctrl+t",
         ["closeTab"] = "ctrl+w",
+        ["toggleTabPin"] = "f6",
         ["nextTab"] = "ctrl+shift+]",
         ["prevTab"] = "ctrl+shift+[",
         ["toggleTerminal"] = "ctrl+j",
@@ -301,6 +302,11 @@ public partial class MainWindow
         else if (IsShortcut("closeTab", e))
         {
             CloseActiveTab();
+            e.Handled = true;
+        }
+        else if (IsShortcut("toggleTabPin", e))
+        {
+            ToggleActiveTabPin();
             e.Handled = true;
         }
         else if (IsShortcut("nextTab", e))

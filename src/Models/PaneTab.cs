@@ -21,4 +21,12 @@ internal sealed class PaneTab(string path)
     /// switching back can restore the selection / focus.
     /// </summary>
     public string? SelectedName { get; set; }
+
+    /// <summary>
+    /// Whether this tab is pinned. A pinned tab stays fixed on its folder and
+    /// at its strip position: navigating it opens a new tab instead of moving
+    /// it (see <c>Navigate</c>), and it cannot be closed — Ctrl+W, middle-click
+    /// and the close button are all suppressed while pinned.
+    /// </summary>
+    public bool Pinned { get; set; }
 }

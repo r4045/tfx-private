@@ -69,27 +69,30 @@ public partial class MainWindow
         // through to the usual saved-tab restore.
         if (explicitLeftStart)
         {
-            SeedPaneTabs(Pane.Left, [], 0, _leftPath);
+            SeedPaneTabs(Pane.Left, [], 0, [], _leftPath);
         }
         else
         {
-            SeedPaneTabs(Pane.Left, _settings.LeftTabs, _settings.LeftActiveTab, _leftPath);
+            SeedPaneTabs(Pane.Left, _settings.LeftTabs, _settings.LeftActiveTab, _settings.LeftPinnedTabs, _leftPath);
         }
 
-        SeedPaneTabs(Pane.Right, _settings.RightTabs, _settings.RightActiveTab, _rightPath);
+        SeedPaneTabs(Pane.Right, _settings.RightTabs, _settings.RightActiveTab, _settings.RightPinnedTabs, _rightPath);
     }
 
-    private void SeedPaneTabs(Pane pane, List<string> savedPaths, int savedActive, string fallbackPath)
+    private void SeedPaneTabs(Pane pane, List<string> savedPaths, int savedActive, List<int> pinnedIndices, string fallbackPath)
     {
         var tabs = TabsOf(pane);
         tabs.Clear();
 
-        // Restore only paths that still exist; always keep at least one tab.
-        foreach (var p in savedPaths)
+        // Restore only paths that still exist; always keep at least one tab. A
+        // tab is pinned when its ORIGINAL index (position in the saved list) was
+        // pinned — keyed on the source index, not the destination, because
+        // unrestorable paths are skipped and would otherwise shift the mapping.
+        for (var i = 0; i < savedPaths.Count; i++)
         {
-            if (IsPathRestorable(p))
+            if (IsPathRestorable(savedPaths[i]))
             {
-                tabs.Add(new PaneTab(p));
+                tabs.Add(new PaneTab(savedPaths[i]) { Pinned = pinnedIndices.Contains(i) });
             }
         }
         if (tabs.Count == 0)
@@ -181,6 +184,14 @@ public partial class MainWindow
             return;
         }
 
+        // Pinned tabs never close: Ctrl+W, middle-click and the × button (hidden
+        // while pinned) all route here, so one guard covers every path.
+        if (tabs[index].Pinned)
+        {
+            SetStatus(Loc.T("Pinned tab — unpin to close (F6)"));
+            return;
+        }
+
         if (tabs.Count == 1)
         {
             // Last tab. The right pane collapses to single-pane view; the left
@@ -205,6 +216,48 @@ public partial class MainWindow
     {
         var pane = ActivePane;
         CloseTab(pane, ActiveTabIndexOf(pane));
+    }
+
+    /// <summary>
+    /// F6 (toggleTabPin): flips the pinned state of the active pane's active tab.
+    /// </summary>
+    private void ToggleActiveTabPin()
+    {
+        var pane = ActivePane;
+        ToggleTabPin(pane, ActiveTabIndexOf(pane));
+    }
+
+    /// <summary>
+    /// Flips a tab's pinned state in place. Pinning never reorders the tab; it
+    /// only changes how navigation (new tab vs in-place) and closing behave.
+    /// </summary>
+    private void ToggleTabPin(Pane pane, int index)
+    {
+        var tabs = TabsOf(pane);
+        if (index < 0 || index >= tabs.Count)
+        {
+            return;
+        }
+
+        var tab = tabs[index];
+        tab.Pinned = !tab.Pinned;
+        SetStatus(Loc.F(tab.Pinned ? "Pinned tab: {0}" : "Unpinned tab: {0}", TabTitle(tab.Path)));
+        RebuildTabStrip(pane);
+        SaveSettings();
+    }
+
+    /// <summary>Positions of the pinned tabs within <paramref name="tabs"/>, for persistence.</summary>
+    private static List<int> PinnedTabIndices(List<PaneTab> tabs)
+    {
+        var indices = new List<int>();
+        for (var i = 0; i < tabs.Count; i++)
+        {
+            if (tabs[i].Pinned)
+            {
+                indices.Add(i);
+            }
+        }
+        return indices;
     }
 
     private void CycleTab(int direction)
@@ -306,7 +359,7 @@ public partial class MainWindow
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxWidth = 140,
-            Margin = new Thickness(8, 0, 4, 0)
+            Margin = tab.Pinned ? new Thickness(4, 0, 6, 0) : new Thickness(8, 0, 4, 0)
         };
 
         var close = new Button
@@ -332,8 +385,29 @@ public partial class MainWindow
         };
 
         var content = new DockPanel { LastChildFill = false };
-        DockPanel.SetDock(close, Dock.Right);
-        content.Children.Add(close);
+
+        if (tab.Pinned)
+        {
+            // Pinned: leading pin glyph, no close button (Ctrl+W / middle-click
+            // are also suppressed in CloseTab) so the tab reads as fixed.
+            var pin = new TextBlock
+            {
+                Text = "\uE840", // Segoe Fluent "Pinned"
+                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                FontSize = 10,
+                Foreground = active ? fg : muted,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(6, 0, 0, 0)
+            };
+            DockPanel.SetDock(pin, Dock.Left);
+            content.Children.Add(pin);
+        }
+        else
+        {
+            DockPanel.SetDock(close, Dock.Right);
+            content.Children.Add(close);
+        }
+
         DockPanel.SetDock(label, Dock.Left);
         content.Children.Add(label);
 
@@ -349,6 +423,14 @@ public partial class MainWindow
             Child = content,
             ToolTip = tab.Path
         };
+
+        // Right-click toggles pin (label reflects the current state).
+        var menu = new ContextMenu();
+        var pinItem = new MenuItem { Header = Loc.T(tab.Pinned ? "Unpin tab" : "Pin tab") };
+        pinItem.Click += (_, _) => ToggleTabPin(pane, index);
+        menu.Items.Add(pinItem);
+        chip.ContextMenu = menu;
+
         chip.MouseLeftButtonUp += (_, _) =>
         {
             if (index != ActiveTabIndexOf(pane))
