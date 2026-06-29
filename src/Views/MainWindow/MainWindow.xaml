@@ -41,6 +41,7 @@
             <Setter Property="TextAlignment" Value="Center" />
         </Style>
     </Window.Resources>
+    <Border BorderBrush="{DynamicResource TfxWindowBorder}" BorderThickness="1">
     <Grid>
     <DockPanel>
         <Border DockPanel.Dock="Top" Background="{DynamicResource TfxHitSurface}" BorderBrush="{DynamicResource TfxBorder}" BorderThickness="0,0,0,1" Padding="5,4" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
@@ -544,4 +545,5 @@
             Background="{DynamicResource TfxHitSurface}" Cursor="SizeNWSE"
             MouseLeftButtonDown="ResizeBottomRight_MouseLeftButtonDown" />
     </Grid>
+    </Border>
 </Window>

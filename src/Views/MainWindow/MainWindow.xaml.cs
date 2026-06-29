@@ -479,6 +479,7 @@ public partial class MainWindow : Window
         SetResourceBrush("TfxPanel", ColorToken("fileListBackground", fallback: Color.FromRgb(23, 27, 31)), backgroundOpacity);
         SetResourceBrush("TfxPanelActive", ColorToken("titleBarBackgroundActive", "fileListRowSelected", fallback: Color.FromRgb(30, 37, 43)), backgroundOpacity);
         SetResourceBrush("TfxBorder", ColorToken("paneBorderInactive", fallback: Color.FromRgb(45, 53, 60)));
+        SetResourceBrush("TfxWindowBorder", ColorToken("windowBorder", "paneBorderInactive", fallback: Color.FromRgb(45, 53, 60)));
         SetResourceBrush("TfxForeground", ColorToken("fileForeground", fallback: Color.FromRgb(214, 222, 230)));
         SetResourceBrush("TfxMuted", ColorToken("secondaryForeground", "headerForeground", fallback: Color.FromRgb(143, 155, 168)));
         SetResourceBrush("TfxAccent", ColorToken("directoryForeground", "splitHandleActive", fallback: Color.FromRgb(125, 211, 252)));

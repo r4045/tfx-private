@@ -6,6 +6,7 @@
         <SolidColorBrush x:Key="TfxPanel" Color="#171B1F" />
         <SolidColorBrush x:Key="TfxPanelActive" Color="#1E252B" />
         <SolidColorBrush x:Key="TfxBorder" Color="#2D353C" />
+        <SolidColorBrush x:Key="TfxWindowBorder" Color="#2D353C" />
         <SolidColorBrush x:Key="TfxForeground" Color="#D6DEE6" />
         <SolidColorBrush x:Key="TfxMuted" Color="#8F9BA8" />
         <SolidColorBrush x:Key="TfxAccent" Color="#7DD3FC" />

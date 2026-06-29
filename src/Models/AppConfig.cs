@@ -947,6 +947,13 @@ public sealed class AppConfig
         # md = "code"
         # pdf = "C:\\Program Files\\SumatraPDF\\SumatraPDF.exe"
         #
+        # UI colors ([colors]). Keys are semantic names mapped onto the theme.
+        # windowBorder = the 1px outline around the whole window (so the app's
+        # edge is visible against a same-colored desktop / adjacent app). Omit
+        # for the default dark gray.
+        # [colors]
+        # windowBorder = "#3B82F6"
+        #
         # Drag-and-drop a file onto an executable / script row to run it with the
         # dropped file(s) as arguments. Nothing here = the gesture is off (a drop
         # onto a file falls back to the normal copy / move). `direct` files run
