@@ -18,6 +18,11 @@ public partial class MainWindow : Window
 {
     private const int WmSysCommand = 0x0112;
     private const int ScSize = 0xF000;
+    // WM_NCLBUTTONDOWN + HTCAPTION hands the press to the OS window-move loop.
+    // Used for title-bar dragging so a maximized window restores and follows
+    // the cursor (standard Windows behaviour) and normal drags get Aero Snap.
+    private const int WmNcLButtonDown = 0x00A1;
+    private const int HtCaption = 2;
     // WM_SYSCOMMAND SC_SIZE direction codes (WMSZ_*).
     private const int WmszLeft = 1;
     private const int WmszRight = 2;
@@ -564,7 +569,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        DragMove();
+        // Hand the drag to the OS move loop rather than WPF's DragMove so the
+        // gesture behaves like a native title bar: a maximized window restores
+        // and follows the cursor, and normal-size drags snap (Aero Snap) at the
+        // screen edges. The move loop applies its own drag threshold, so a plain
+        // click that doesn't move leaves the window state untouched.
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero)
+        {
+            DragMove();
+            return;
+        }
+
+        _ = ReleaseCapture();
+        _ = SendMessage(handle, WmNcLButtonDown, new IntPtr(HtCaption), IntPtr.Zero);
     }
 
     private static bool IsInteractiveTitleElement(DependencyObject? source)
