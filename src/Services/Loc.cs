@@ -42,6 +42,8 @@ internal static class Loc
         ["Quit (send Ctrl+\\)"] = "終了（Ctrl+\\ を送信）",
         ["EOF / suspend (send Ctrl+Z)"] = "EOF / 中断（Ctrl+Z を送信）",
         ["Close terminal ({0})"] = "ターミナルを閉じる ({0})",
+        ["Vi mode keys"] = "Vi モードのキー一覧",
+        ["Close (Enter)"] = "閉じる (Enter)",
         ["Showing {0} of {1} rows"] = "{1} 行中 {0} 行を表示",
         ["Showing {0} of {1} columns"] = "{1} 列中 {0} 列を表示",
         ["WebView2 runtime is unavailable: {0}"] = "WebView2 ランタイムが利用できません: {0}",

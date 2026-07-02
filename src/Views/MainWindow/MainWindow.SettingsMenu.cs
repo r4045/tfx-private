@@ -60,6 +60,7 @@ public partial class MainWindow
             ["pathToClipboard"] = ("Copy the current path to the clipboard", "現在のパスをクリップボードにコピー"),
             ["openBookmarkDialog"] = ("Jump to a bookmark (quick jump)", "ブックマークへジャンプ（クイック ジャンプ）"),
             ["commandPalette"] = ("Open the command palette", "コマンド パレットを開く"),
+            ["viCheatSheet"] = ("Show the Vi-mode key cheat sheet", "Vi モードのキー一覧を表示"),
         };
 
     /// <summary>

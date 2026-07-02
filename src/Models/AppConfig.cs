@@ -913,6 +913,7 @@ public sealed class AppConfig
         quit = "ctrl+q"
         openBookmarkDialog = "f8"
         commandPalette = "ctrl+p"
+        viCheatSheet = "shift+f1"
 
         # Startup layout:
         # [startup]

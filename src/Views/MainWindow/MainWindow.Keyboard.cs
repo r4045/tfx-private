@@ -50,6 +50,7 @@ public partial class MainWindow
         ["pathToClipboard"] = "f9",
         ["openBookmarkDialog"] = "f8",
         ["commandPalette"] = "ctrl+p",
+        ["viCheatSheet"] = "shift+f1",
     };
 
     private bool InArchiveContext => ArchivePath.Contains(GetCurrentPath(_activeGrid));
@@ -255,6 +256,11 @@ public partial class MainWindow
         else if (IsShortcut("commandPalette", e))
         {
             OpenCommandPalette();
+            e.Handled = true;
+        }
+        else if (IsShortcut("viCheatSheet", e))
+        {
+            OpenViCheatSheet();
             e.Handled = true;
         }
         else if (IsShortcut("toggleHidden", e))
@@ -611,6 +617,47 @@ public partial class MainWindow
             OpenItem(_activeGrid, item);
             e.Handled = true;
         }
+    }
+
+    // ── Vi move-mode cheat sheet ──────────────────────────────────────────
+    // Reference data for the viCheatSheet dialog (Shift+F1 by default). The Vi
+    // keys are hardcoded in the switch in Window_PreviewKeyDown above and are
+    // NOT rebindable, so unlike DefaultShortcutText / _shortcuts they have no
+    // live binding to read from — this table is their only description.
+    // IMPORTANT: when a Vi key is added, removed, or repurposed in that switch,
+    // update this table in the SAME edit. English / Japanese is chosen by the
+    // same Loc.IsJapanese gate used elsewhere; kept local (not in Loc) because
+    // it is feature-specific reference text, matching ShortcutCatalog.
+    private static readonly (string GroupEn, string GroupJa, string Key, string En, string Ja)[] ViKeyCatalog =
+    [
+        ("Navigation", "移動", "j", "Move down", "下へ移動"),
+        ("Navigation", "移動", "k", "Move up", "上へ移動"),
+        ("Navigation", "移動", "h", "Go to the parent folder", "親フォルダーへ移動"),
+        ("Navigation", "移動", "l", "Open the selected folder", "選択フォルダーへ入る"),
+        ("Navigation", "移動", "g", "Jump to the first item", "先頭の項目へ"),
+        ("Navigation", "移動", "G", "Jump to the last item", "末尾の項目へ"),
+        ("Create", "作成", "a", "Create a new file", "新規ファイルを作成"),
+        ("Create", "作成", "n", "Create a new folder", "新規フォルダーを作成"),
+        ("Clipboard", "クリップボード", "c", "Copy the selection", "選択項目をコピー"),
+        ("Clipboard", "クリップボード", "x", "Cut the selection", "選択項目を切り取り"),
+        ("Clipboard", "クリップボード", "p", "Paste into the active pane", "アクティブ ペインに貼り付け"),
+    ];
+
+    private void OpenViCheatSheet()
+    {
+        new ViCheatSheetDialog(BuildViCheatSheetEntries()).ShowDialog();
+    }
+
+    private static List<ViCheatSheetEntry> BuildViCheatSheetEntries()
+    {
+        var entries = new List<ViCheatSheetEntry>();
+        foreach (var row in ViKeyCatalog)
+        {
+            var group = Loc.IsJapanese ? row.GroupJa : row.GroupEn;
+            var description = Loc.IsJapanese ? row.Ja : row.En;
+            entries.Add(new ViCheatSheetEntry(group, row.Key, description));
+        }
+        return entries;
     }
 
     private bool IsFocusInActiveListing()
