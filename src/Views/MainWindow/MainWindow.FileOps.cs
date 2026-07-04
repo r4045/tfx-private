@@ -154,16 +154,21 @@ public partial class MainWindow
             return;
         }
         _cutBuffer = cut ? paths : [];
+        ClipboardDiag.Log($"copy: cut={cut}, {paths.Length} path(s): {string.Join(" | ", paths)}");
+        ClipboardDiag.LogFormats("copy: clipboard state after SetFileDropList");
         SetStatus(cut ? Loc.F("Cut {0} item(s)", paths.Length) : Loc.F("Copied {0} item(s)", paths.Length));
     }
 
     private void PasteIntoActivePane()
     {
+        ClipboardDiag.LogFormats("paste: clipboard state");
         string[] files;
         try
         {
             if (!Clipboard.ContainsFileDropList())
             {
+                ClipboardDiag.Log("paste: no FileDrop on clipboard");
+                SetStatus(Loc.T("No pasteable files on the clipboard"));
                 return;
             }
             files = Clipboard.GetFileDropList().Cast<string>().ToArray();

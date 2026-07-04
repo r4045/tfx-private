@@ -132,6 +132,7 @@ internal static class Loc
         ["Copy failed: {0}"] = "コピーに失敗しました: {0}",
         ["Cut failed: {0}"] = "切り取りに失敗しました: {0}",
         ["Paste failed: {0}"] = "貼り付けに失敗しました: {0}",
+        ["No pasteable files on the clipboard"] = "クリップボードに貼り付け可能なファイルがありません",
         ["Pasted {0} item(s)"] = "{0} 個を貼り付けました",
         ["Pasted {0}; source remained for: {1}"] = "{0} 個を貼り付けました。元が残ったもの: {1}",
         ["Pasted {0}; failed: {1}"] = "{0} 個を貼り付けました。失敗: {1}",
