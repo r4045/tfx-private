@@ -154,16 +154,25 @@ public partial class MainWindow
             return;
         }
         _cutBuffer = cut ? paths : [];
+        ClipboardDiag.Log($"copy: cut={cut}, {paths.Length} path(s): {string.Join(" | ", paths)}");
+        ClipboardDiag.LogFormats("copy: clipboard state after SetFileDropList");
         SetStatus(cut ? Loc.F("Cut {0} item(s)", paths.Length) : Loc.F("Copied {0} item(s)", paths.Length));
     }
 
     private void PasteIntoActivePane()
     {
+        ClipboardDiag.LogFormats("paste: clipboard state");
         string[] files;
         try
         {
             if (!Clipboard.ContainsFileDropList())
             {
+                // No CF_HDROP does not mean no files: the RDP clipboard
+                // (rdpclip), Outlook attachments and Explorer's zip folders
+                // publish copied files as virtual FileGroupDescriptorW /
+                // FileContents streams, because real source paths don't
+                // exist on this machine.
+                PasteVirtualFilesIntoActivePane();
                 return;
             }
             files = Clipboard.GetFileDropList().Cast<string>().ToArray();
@@ -310,6 +319,149 @@ public partial class MainWindow
 
         _cutBuffer = [];
 
+        RefreshPanesAfterPaste(lastWrittenName);
+
+        if (failed.Count == 0 && leftBehind.Count == 0)
+        {
+            SetStatus(Loc.F("Pasted {0} item(s)", succeeded));
+        }
+        else if (leftBehind.Count > 0)
+        {
+            SetStatus(Loc.F("Pasted {0}; source remained for: {1}", succeeded, string.Join(", ", leftBehind)));
+        }
+        else
+        {
+            SetStatus(Loc.F("Pasted {0}; failed: {1}", succeeded, string.Join(", ", failed)));
+        }
+    }
+
+    /// <summary>
+    /// Pastes virtual files (FileGroupDescriptorW + FileContents) from the
+    /// clipboard — the shape the RDP clipboard and other stream-backed
+    /// sources use instead of CF_HDROP. Always a copy: the source files are
+    /// not on this machine, so cut/move semantics cannot apply.
+    /// </summary>
+    private void PasteVirtualFilesIntoActivePane()
+    {
+        using var clipboard = VirtualFileClipboard.TryOpen();
+        if (clipboard is null)
+        {
+            ClipboardDiag.Log("paste: no FileDrop and no virtual files on clipboard");
+            SetStatus(Loc.T("No pasteable files on the clipboard"));
+            return;
+        }
+
+        ClipboardDiag.Log($"paste: {clipboard.Entries.Count} virtual entries: " +
+            string.Join(" | ", clipboard.Entries.Select(e => e.RelativePath + (e.IsDirectory ? "\\" : ""))));
+
+        var destination = GetCurrentPath(_activeGrid);
+
+        // Group entries by their top-level name so conflicts prompt once per
+        // pasted item, matching the CF_HDROP path above.
+        var groups = new List<VirtualPasteGroup>();
+        var byName = new Dictionary<string, VirtualPasteGroup>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in clipboard.Entries)
+        {
+            var separator = entry.RelativePath.IndexOf('\\');
+            var topName = separator < 0 ? entry.RelativePath : entry.RelativePath[..separator];
+            if (!byName.TryGetValue(topName, out var group))
+            {
+                group = new VirtualPasteGroup(topName);
+                byName.Add(topName, group);
+                groups.Add(group);
+            }
+            group.IsDirectory |= separator >= 0 || entry.IsDirectory;
+            group.Members.Add(entry);
+        }
+
+        var succeeded = 0;
+        var failed = new List<string>();
+        string? lastWrittenName = null;
+        FileConflictChoice? bulkChoice = null;
+        var remaining = groups.Count;
+
+        foreach (var group in groups)
+        {
+            remaining--;
+            var requestedTarget = Path.Combine(destination, group.TopName);
+            var collides = File.Exists(requestedTarget) || Directory.Exists(requestedTarget);
+
+            var target = requestedTarget;
+            if (collides)
+            {
+                var choice = bulkChoice ?? FileConflictChoice.KeepBoth;
+                if (bulkChoice is null)
+                {
+                    var dialog = new FileConflictDialog(
+                        group.TopName,
+                        group.IsDirectory,
+                        allowOverwrite: true,
+                        canApplyToAll: remaining > 0);
+                    if (dialog.ShowDialog() != true)
+                    {
+                        // Cancel aborts the whole paste.
+                        break;
+                    }
+                    choice = dialog.Choice;
+                    if (dialog.ApplyToAll)
+                    {
+                        bulkChoice = choice;
+                    }
+                }
+
+                // Overwrite needs no special handling here: files are
+                // rewritten in place (FileMode.Create) and directories are
+                // merged, matching Explorer's behaviour.
+                if (choice != FileConflictChoice.Overwrite)
+                {
+                    target = FsHelpers.NextAvailablePath(requestedTarget);
+                }
+            }
+
+            var targetTop = Path.GetFileName(target);
+            try
+            {
+                foreach (var entry in group.Members)
+                {
+                    var mapped = Path.Combine(destination, targetTop + entry.RelativePath[group.TopName.Length..]);
+                    if (entry.IsDirectory)
+                    {
+                        Directory.CreateDirectory(mapped);
+                    }
+                    else
+                    {
+                        // Descriptor order is not guaranteed to list parent
+                        // folders first, so create them per file.
+                        Directory.CreateDirectory(Path.GetDirectoryName(mapped)!);
+                        clipboard.ExtractToFile(entry, mapped);
+                    }
+                }
+
+                succeeded++;
+                lastWrittenName = targetTop;
+            }
+            catch (Exception ex)
+            {
+                failed.Add($"{group.TopName} ({ex.Message})");
+            }
+        }
+
+        RefreshPanesAfterPaste(lastWrittenName);
+
+        SetStatus(failed.Count == 0
+            ? Loc.F("Pasted {0} item(s)", succeeded)
+            : Loc.F("Pasted {0}; failed: {1}", succeeded, string.Join(", ", failed)));
+    }
+
+    private sealed class VirtualPasteGroup(string topName)
+    {
+        public string TopName { get; } = topName;
+        public bool IsDirectory { get; set; }
+        public List<VirtualFileEntry> Members { get; } = [];
+    }
+
+    private void RefreshPanesAfterPaste(string? lastWrittenName)
+    {
         // Refresh both panes (the source can be the other pane) and select the
         // most-recently written entry in the destination so the paste is visibly
         // reflected even on network shares, where the watcher-driven refresh is
@@ -349,19 +501,6 @@ public partial class MainWindow
             }
         };
         refocus.Start();
-
-        if (failed.Count == 0 && leftBehind.Count == 0)
-        {
-            SetStatus(Loc.F("Pasted {0} item(s)", succeeded));
-        }
-        else if (leftBehind.Count > 0)
-        {
-            SetStatus(Loc.F("Pasted {0}; source remained for: {1}", succeeded, string.Join(", ", leftBehind)));
-        }
-        else
-        {
-            SetStatus(Loc.F("Pasted {0}; failed: {1}", succeeded, string.Join(", ", failed)));
-        }
     }
 
     private void MoveSelectionToTrash()

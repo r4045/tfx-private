@@ -169,7 +169,9 @@ public partial class MainWindow
         bool hasClipboard;
         try
         {
-            hasClipboard = Clipboard.ContainsFileDropList();
+            // Virtual files (RDP clipboard, Outlook attachments, zip
+            // folders) don't appear as a FileDrop list but are pasteable.
+            hasClipboard = Clipboard.ContainsFileDropList() || VirtualFileClipboard.IsAvailable();
         }
         catch
         {
