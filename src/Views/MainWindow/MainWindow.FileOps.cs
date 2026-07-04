@@ -139,20 +139,48 @@ public partial class MainWindow
 
         var collection = new StringCollection();
         collection.AddRange(paths);
-        Clipboard.SetFileDropList(collection);
+        try
+        {
+            Clipboard.SetFileDropList(collection);
+        }
+        catch (Exception ex)
+        {
+            // Another process (clipboard history, clipboard managers, RDP
+            // sync) can hold the clipboard open; WPF then throws
+            // CLIPBRD_E_CANT_OPEN even after its internal retries. Surface
+            // the failure instead of letting it escape the key handler and
+            // kill the app.
+            SetStatus(cut ? Loc.F("Cut failed: {0}", ex.Message) : Loc.F("Copy failed: {0}", ex.Message));
+            return;
+        }
         _cutBuffer = cut ? paths : [];
         SetStatus(cut ? Loc.F("Cut {0} item(s)", paths.Length) : Loc.F("Copied {0} item(s)", paths.Length));
     }
 
     private void PasteIntoActivePane()
     {
-        if (!Clipboard.ContainsFileDropList())
+        string[] files;
+        try
+        {
+            if (!Clipboard.ContainsFileDropList())
+            {
+                return;
+            }
+            files = Clipboard.GetFileDropList().Cast<string>().ToArray();
+        }
+        catch (Exception ex)
+        {
+            // Reading the clipboard fails with CLIPBRD_E_CANT_OPEN while
+            // another process holds it open; report instead of crashing.
+            SetStatus(Loc.F("Paste failed: {0}", ex.Message));
+            return;
+        }
+        if (files.Length == 0)
         {
             return;
         }
 
         var destination = GetCurrentPath(_activeGrid);
-        var files = Clipboard.GetFileDropList().Cast<string>().ToArray();
         var succeeded = 0;
         var failed = new List<string>();
         var leftBehind = new List<string>();

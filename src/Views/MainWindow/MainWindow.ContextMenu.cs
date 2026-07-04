@@ -164,7 +164,17 @@ public partial class MainWindow
         var hasSelection = selection.Length > 0;
         var oneSelected = selection.Length == 1;
         var hasZipSelection = selection.Any(i => !i.IsDirectory && System.IO.Path.GetExtension(i.FullPath).Equals(".zip", StringComparison.OrdinalIgnoreCase) && !ArchivePath.Contains(i.FullPath));
-        var hasClipboard = Clipboard.ContainsFileDropList();
+        // The clipboard can be held open by another process; treat as empty
+        // rather than letting the COMException take down the context menu.
+        bool hasClipboard;
+        try
+        {
+            hasClipboard = Clipboard.ContainsFileDropList();
+        }
+        catch
+        {
+            hasClipboard = false;
+        }
         var inArchive = ArchivePath.Contains(GetCurrentPath(grid));
         var selectionHasArchive = selection.Any(s => ArchivePath.Contains(s.FullPath));
         var writableContext = !inArchive && !selectionHasArchive;
