@@ -205,13 +205,13 @@ public partial class MainWindow
         }
         SetSplitVisible(enabling);
 
-        // Open the right pane at the same folder as the left pane so the
-        // user starts with a known location instead of an unrelated saved
-        // path. Only when toggling on, and only when the two diverge.
-        if (enabling && !string.IsNullOrEmpty(_leftPath) &&
-            !string.Equals(_leftPath, _rightPath, StringComparison.OrdinalIgnoreCase))
+        // First reveal of a session with nothing to restore seeds the right pane
+        // from the left pane's current folder; once seeded (or restored from a
+        // persisted session) a later toggle reveals the right pane's own tabs
+        // as-is, so a pinned tab is never dragged onto the left path.
+        if (enabling)
         {
-            Navigate(RightGrid, _leftPath, false);
+            EnsureRightPaneSeeded();
         }
 
         SaveSettings();

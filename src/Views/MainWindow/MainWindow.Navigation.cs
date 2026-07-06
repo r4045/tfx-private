@@ -299,6 +299,37 @@ public partial class MainWindow
         return Keyboard.FocusedElement == cell;
     }
 
+    /// <summary>
+    /// Re-claims keyboard focus for the active listing after an operation that
+    /// rebuilds it (paste, rename). Reload's leading target.Clear() destroys the
+    /// row that currently holds keyboard focus and WPF frequently drops focus to
+    /// null or leaves the grid in a state where a single Focus() call fails, so
+    /// a one-shot attempt is not reliable. Retries every 200 ms until focus lands
+    /// back in the active listing, or until the user has legitimately parked it
+    /// on another control (search box, folder tree, terminal, the other pane).
+    /// Capped so a stuck reload can't loop forever.
+    /// </summary>
+    private void StartListingFocusRecovery()
+    {
+        Dispatcher.BeginInvoke(FocusActiveListing, DispatcherPriority.ApplicationIdle);
+
+        var refocus = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        var refocusAttempts = 0;
+        refocus.Tick += (_, _) =>
+        {
+            refocusAttempts++;
+            if (!IsFocusInActiveListing() && !IsFocusOnDeliberateTarget())
+            {
+                FocusActiveListing();
+            }
+            if (IsFocusInActiveListing() || IsFocusOnDeliberateTarget() || refocusAttempts >= 15)
+            {
+                refocus.Stop();
+            }
+        };
+        refocus.Start();
+    }
+
     private void FocusActiveListing()
     {
         var iconView = IconViewOf(ActivePane);

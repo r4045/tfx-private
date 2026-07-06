@@ -30,6 +30,13 @@ public sealed class AppConfig
     // and middle-click-to-open-folder, which share OpenNewTab. Stored lowercased
     // to match the [startup] enum-string convention.
     public string NewTabPosition { get; set; } = "rightmost";
+
+    // Right (split) pane persistence ([tabs] persistRightPane). true (default):
+    // the right pane's tabs and pins are saved and restored across restarts.
+    // false: session-only — kept in memory while running (across split toggles)
+    // but cleared on exit, so the pane starts empty next launch and is seeded
+    // from the left pane the first time the split is shown.
+    public bool PersistRightPane { get; set; } = true;
     public List<UserCommand> Commands { get; } = [];
     public List<Bookmark> Bookmarks { get; } = [];
     public List<string> Errors { get; } = [];
@@ -248,6 +255,17 @@ public sealed class AppConfig
                         else
                         {
                             config.Errors.Add($"Invalid newTabPosition: {value}");
+                        }
+                    }
+                    else if (key.Equals("persistRightPane", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (TryParseBool(value, out var persistRight))
+                        {
+                            config.PersistRightPane = persistRight;
+                        }
+                        else
+                        {
+                            config.Errors.Add($"Invalid persistRightPane: {value}");
                         }
                     }
                     else
@@ -928,9 +946,12 @@ public sealed class AppConfig
         # New-tab placement: where Ctrl+T and middle-click-to-open-folder put the
         # new tab. "rightmost" (default) appends it to the end of the tab strip so
         # the newest tab is always last; "afterActive" inserts it next to the
-        # current tab.
+        # current tab. persistRightPane controls whether the right (split) pane's
+        # tabs survive a restart: true (default) restores them; false keeps them
+        # only for the running session and starts empty next launch.
         # [tabs]
         # newTabPosition = "rightmost"   # rightmost | afterActive
+        # persistRightPane = true        # true | false
         #
         # External terminal (toolbar / openTerminal) and built-in pane:
         # [terminal]

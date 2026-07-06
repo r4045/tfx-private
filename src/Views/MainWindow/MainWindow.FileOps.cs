@@ -473,34 +473,10 @@ public partial class MainWindow
 
         // Pasting clears and repopulates the active pane (and a conflict dialog,
         // when shown, pulls focus away), so keyboard focus ends up off the
-        // listing until the user clicks back in. Re-claim it once the async
-        // reload has settled and ApplyPendingSelection has selected the pasted
-        // entry.
-        Dispatcher.BeginInvoke(FocusActiveListing, DispatcherPriority.ApplicationIdle);
-
-        // Reload's leading target.Clear() destroys the row that currently holds
-        // keyboard focus; WPF frequently drops focus to null rather than bubbling
-        // it up to a parent. Null focus means every window-level shortcut is dead
-        // (KeyDown has no source element to route from) — which is why Ctrl+1
-        // could not recover it and only a mouse click did. Keep re-claiming focus
-        // until it lands back in the active listing, or until the user has
-        // legitimately parked it on another control (search box, folder tree,
-        // terminal, the other pane). Capped so a stuck reload can't loop forever.
-        var refocus = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
-        var refocusAttempts = 0;
-        refocus.Tick += (_, _) =>
-        {
-            refocusAttempts++;
-            if (!IsFocusInActiveListing() && !IsFocusOnDeliberateTarget())
-            {
-                FocusActiveListing();
-            }
-            if (IsFocusInActiveListing() || IsFocusOnDeliberateTarget() || refocusAttempts >= 15)
-            {
-                refocus.Stop();
-            }
-        };
-        refocus.Start();
+        // listing until the user clicks back in. Re-claim it (with retries)
+        // once the async reload has settled and ApplyPendingSelection has
+        // selected the pasted entry.
+        StartListingFocusRecovery();
     }
 
     private void MoveSelectionToTrash()
@@ -679,13 +655,22 @@ public partial class MainWindow
 
         // Restore selection on the renamed entry after the reload so the
         // user keeps their place (and so arrow keys keep navigating).
+        // The name MUST go through Reload's selectName parameter: Reload
+        // unconditionally overwrites the pane's pending selection name with
+        // its own argument, so a prior SetPendingSelectionName here would be
+        // wiped to null before ApplyPendingSelection ever saw it — which is
+        // why the renamed entry lost both selection and keyboard focus.
         var renamedName = Path.GetFileName(target);
-        SetPendingSelectionName(PaneOf(grid), renamedName);
 
         Dispatcher.BeginInvoke(() =>
         {
-            Reload(LeftGrid);
-            Reload(RightGrid);
+            Reload(grid, renamedName);
+            Reload(grid == LeftGrid ? RightGrid : LeftGrid);
+
+            // Renaming rebuilds the listing (and ends a cell edit), both of
+            // which can strand keyboard focus outside the pane; re-claim it
+            // the same way paste does.
+            StartListingFocusRecovery();
         }, DispatcherPriority.Background);
     }
 

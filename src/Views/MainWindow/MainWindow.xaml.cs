@@ -115,6 +115,13 @@ public partial class MainWindow : Window
         Navigate(RightGrid, ResolveInitialRightPath(), false);
         InitializeTabs(explicitLeftStart);
         ApplyLayoutSettings();
+        // If the split is visible at startup, ensure the right pane has real
+        // content (restored tabs, or seeded from the left folder when there is
+        // nothing to restore) and is marked seeded for the session.
+        if (RightPaneColumn.Width.Value > 0)
+        {
+            EnsureRightPaneSeeded();
+        }
         ApplyMoveMode();
         // Always land on the left pane at startup so the user opens onto
         // the left listing with the ".." row preselected (set by Navigate
@@ -719,11 +726,25 @@ public partial class MainWindow : Window
         _settings.LeftPath = _leftPath;
         _settings.RightPath = _rightPath;
         _settings.LeftTabs = _leftTabs.Select(t => t.Path).ToList();
-        _settings.RightTabs = _rightTabs.Select(t => t.Path).ToList();
         _settings.LeftActiveTab = _leftActiveTabIndex;
-        _settings.RightActiveTab = _rightActiveTabIndex;
         _settings.LeftPinnedTabs = PinnedTabIndices(_leftTabs);
-        _settings.RightPinnedTabs = PinnedTabIndices(_rightTabs);
+
+        // Right pane persistence is config-gated ([tabs] persistRightPane). When
+        // off, the right pane is session-only: its tabs stay in memory while
+        // running but are cleared here so a restart starts with an empty right
+        // pane (re-seeded from the left pane on first reveal).
+        if (_config.PersistRightPane)
+        {
+            _settings.RightTabs = _rightTabs.Select(t => t.Path).ToList();
+            _settings.RightActiveTab = _rightActiveTabIndex;
+            _settings.RightPinnedTabs = PinnedTabIndices(_rightTabs);
+        }
+        else
+        {
+            _settings.RightTabs = [];
+            _settings.RightActiveTab = 0;
+            _settings.RightPinnedTabs = [];
+        }
         _settings.ActivePane = _activeGrid == RightGrid ? "Right" : "Left";
         var showPreview = PreviewColumn.Width.Value > 0;
         var showSplit = RightPaneColumn.Width.Value > 0;

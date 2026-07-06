@@ -757,8 +757,19 @@ public partial class MainWindow
         return IsInside(focused, grid) || IsInside(focused, iconView);
     }
 
-    /// <summary>Moves keyboard focus to the active file listing.</summary>
-    private void FocusActiveFilePane() => FocusPane(ActivePane);
+    /// <summary>
+    /// Moves keyboard focus to the active file listing. FocusPane's queued
+    /// focus attempts can fail when the listing is mid-rebuild (right after a
+    /// rename or paste the DataGrid may not have realized its row containers,
+    /// or is still tearing down a cell edit), leaving the shortcut apparently
+    /// dead. The recovery watchdog keeps retrying until focus actually lands
+    /// in the listing, so one press of the shortcut is always enough.
+    /// </summary>
+    private void FocusActiveFilePane()
+    {
+        FocusPane(ActivePane);
+        StartListingFocusRecovery();
+    }
 
     /// <summary>
     /// Moves keyboard focus into the built-in terminal pane. Opens the pane first

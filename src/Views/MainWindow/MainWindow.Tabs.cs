@@ -20,6 +20,12 @@ public partial class MainWindow
     private int _leftActiveTabIndex;
     private int _rightActiveTabIndex;
 
+    // True once the right (split) pane has real tabs for this session — either
+    // restored from a persisted session or seeded from the left pane on first
+    // reveal. Gates EnsureRightPaneSeeded so later split toggles reveal the
+    // pane's own tabs instead of resetting them.
+    private bool _rightPaneSeeded;
+
     private List<PaneTab> TabsOf(Pane pane) => pane == Pane.Left ? _leftTabs : _rightTabs;
 
     private int ActiveTabIndexOf(Pane pane) => pane == Pane.Left ? _leftActiveTabIndex : _rightActiveTabIndex;
@@ -76,7 +82,46 @@ public partial class MainWindow
             SeedPaneTabs(Pane.Left, _settings.LeftTabs, _settings.LeftActiveTab, _settings.LeftPinnedTabs, _leftPath);
         }
 
-        SeedPaneTabs(Pane.Right, _settings.RightTabs, _settings.RightActiveTab, _settings.RightPinnedTabs, _rightPath);
+        // The right (split) pane is config-gated ([tabs] persistRightPane). When
+        // persistence is off, saved right tabs are ignored on startup and the
+        // pane seeds a single tab from the left folder; the visible pane is
+        // filled on first reveal via EnsureRightPaneSeeded.
+        if (_config.PersistRightPane)
+        {
+            SeedPaneTabs(Pane.Right, _settings.RightTabs, _settings.RightActiveTab, _settings.RightPinnedTabs, _rightPath);
+        }
+        else
+        {
+            SeedPaneTabs(Pane.Right, [], 0, [], _leftPath);
+        }
+
+        // Seeded only when persisted tabs were actually restored; otherwise the
+        // pane stays unseeded so its first reveal picks up the left folder.
+        _rightPaneSeeded = _config.PersistRightPane && _settings.RightTabs.Any(IsPathRestorable);
+    }
+
+    /// <summary>
+    /// On the first reveal of the right (split) pane in a session that has no
+    /// tabs to restore, point its single fallback tab at the left pane's current
+    /// folder. Marks the pane seeded so subsequent reveals show whatever the user
+    /// has since navigated to, rather than resetting. No-op once seeded (a
+    /// persisted restore counts as seeded).
+    /// </summary>
+    private void EnsureRightPaneSeeded()
+    {
+        if (_rightPaneSeeded)
+        {
+            return;
+        }
+
+        _rightPaneSeeded = true;
+
+        // Unseeded always means a single unpinned fallback tab; only reload when
+        // it is not already sitting on the left folder.
+        if (!FsHelpers.SamePath(_rightPath, _leftPath))
+        {
+            Navigate(RightGrid, _leftPath, false);
+        }
     }
 
     private void SeedPaneTabs(Pane pane, List<string> savedPaths, int savedActive, List<int> pinnedIndices, string fallbackPath)

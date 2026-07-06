@@ -21,6 +21,7 @@ tfx for Windows はユーザーが編集できる設定を次の場所に保存�
 - `[colors]`
 - `[opacity]`
 - `[startup]`
+- `[tabs]`
 - `[shortcuts]`
 - `[terminal]`
 - `[openWith]`
@@ -230,6 +231,26 @@ rightFolder = "~/Downloads"
 [startup]
 geometry = "1200x800+100+50"
 ```
+
+### `[tabs]`
+
+タブ関連の挙動を設定します。
+
+```toml
+[tabs]
+newTabPosition = "rightmost"
+persistRightPane = true
+```
+
+| キー | 型 | 既定 | 説明 |
+| --- | --- | --- | --- |
+| `newTabPosition` | string | `"rightmost"` | 新しいタブ（`Ctrl+T` / フォルダー中クリック）の挿入位置。`"rightmost"` はタブ列の末尾に追加します。`"afterActive"` は現在のタブの直後に挿入します。 |
+| `persistRightPane` | bool | `true` | 右（分割）ペインのタブとピンを再起動をまたいで保存するかどうか。 |
+
+`persistRightPane` は右ペインの記憶方法を切り替えます。
+
+- `true`（既定・永続化）: 右ペインで開いたタブとピンを `settings.json` に保存し、次回起動時に復元します。分割表示を閉じても保持され、再度開くと元のタブがそのまま表示されます。
+- `false`（一時記憶）: 右ペインの状態は保存しません。アプリ起動中はメモリに保持されるため、分割表示を閉じて開き直してもタブとピンはそのまま残ります。クリアされるのはアプリ終了時のみで、次回起動時の右ペインは空になり、分割表示を最初に開いたときに左ペインの現在フォルダーで開きます。
 
 ### `[shortcuts]`
 
