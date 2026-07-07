@@ -7,11 +7,13 @@ public sealed class FileItemComparer : IComparer
 {
     private readonly string _path;
     private readonly ListSortDirection _direction;
+    private readonly bool _groupDirectoriesFirst;
 
-    public FileItemComparer(string path, ListSortDirection direction)
+    public FileItemComparer(string path, ListSortDirection direction, bool groupDirectoriesFirst = true)
     {
         _path = path;
         _direction = direction;
+        _groupDirectoriesFirst = groupDirectoriesFirst;
     }
 
     public int Compare(object? x, object? y)
@@ -25,8 +27,11 @@ public sealed class FileItemComparer : IComparer
         if (!a.IsParent && b.IsParent) return 1;
         if (a.IsParent && b.IsParent) return 0;
 
-        if (a.IsDirectory && !b.IsDirectory) return -1;
-        if (!a.IsDirectory && b.IsDirectory) return 1;
+        if (_groupDirectoriesFirst)
+        {
+            if (a.IsDirectory && !b.IsDirectory) return -1;
+            if (!a.IsDirectory && b.IsDirectory) return 1;
+        }
 
         var cmp = _path switch
         {

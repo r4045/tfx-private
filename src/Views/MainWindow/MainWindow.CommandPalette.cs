@@ -89,6 +89,7 @@ public partial class MainWindow
             ["pathToClipboard"] = (() => true, PathToClipboard),
             ["openBookmarkDialog"] = (() => true, OpenBookmarkQuickJump),
             ["quit"] = (() => true, Close),
+            ["sortByModifiedFlat"] = (() => true, SortActivePaneByModifiedFlat),
         };
     }
 

@@ -151,6 +151,31 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Shortcut-only sort: newest-modified first, files and folders mixed
+    /// together (no folder-first grouping). Applies to the active pane only
+    /// and persists like a column-header sort, since it sets the same
+    /// CollectionView.CustomSort column-click sorting uses. Updates the
+    /// Date modified column's header arrow for visual feedback even though
+    /// this isn't reachable by clicking that header.
+    /// </summary>
+    private void SortActivePaneByModifiedFlat()
+    {
+        var grid = _activeGrid;
+
+        foreach (var column in grid.Columns)
+        {
+            column.SortDirection = string.Equals(column.SortMemberPath, nameof(FileItem.Modified), StringComparison.Ordinal)
+                ? ListSortDirection.Descending
+                : null;
+        }
+
+        if (CollectionViewSource.GetDefaultView(grid.ItemsSource) is ListCollectionView view)
+        {
+            view.CustomSort = new FileItemComparer(nameof(FileItem.Modified), ListSortDirection.Descending, groupDirectoriesFirst: false);
+        }
+    }
+
     private void Columns_Click(object sender, RoutedEventArgs e)
     {
         OpenSettingsMenu();

@@ -51,6 +51,7 @@ public partial class MainWindow
         ["openBookmarkDialog"] = "f8",
         ["commandPalette"] = "ctrl+p",
         ["viCheatSheet"] = "shift+f1",
+        ["sortByModifiedFlat"] = "shift+f3",
     };
 
     private bool InArchiveContext => ArchivePath.Contains(GetCurrentPath(_activeGrid));
@@ -261,6 +262,11 @@ public partial class MainWindow
         else if (IsShortcut("viCheatSheet", e))
         {
             OpenViCheatSheet();
+            e.Handled = true;
+        }
+        else if (IsShortcut("sortByModifiedFlat", e))
+        {
+            SortActivePaneByModifiedFlat();
             e.Handled = true;
         }
         else if (IsShortcut("toggleHidden", e))
