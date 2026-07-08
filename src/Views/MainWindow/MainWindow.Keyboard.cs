@@ -264,11 +264,6 @@ public partial class MainWindow
             OpenViCheatSheet();
             e.Handled = true;
         }
-        else if (IsShortcut("sortByModifiedFlat", e))
-        {
-            SortActivePaneByModifiedFlat();
-            e.Handled = true;
-        }
         else if (IsShortcut("toggleHidden", e))
         {
             ToggleHidden();
@@ -445,6 +440,20 @@ public partial class MainWindow
                 e.Handled = true;
                 return;
             }
+        }
+
+        // Sort-by-modified (Shift+F3) is handled in the tunneling pass for the
+        // same reason as the arrow keys below: as the very first keystroke after
+        // startup the focused DataGrid has no established CurrentCell and
+        // consumes the key while initializing it, so the bubbling Window_KeyDown
+        // never runs and the sort is silently dropped. Handling it here on the
+        // Window, before the pane control sees it, makes a single press land
+        // reliably regardless of where focus settled.
+        if (IsShortcut("sortByModifiedFlat", e))
+        {
+            SortActivePaneByModifiedFlat();
+            e.Handled = true;
+            return;
         }
 
         // Alt+Left / Alt+Right / Alt+Up navigation. WPF delivers Alt combos as

@@ -174,6 +174,15 @@ public partial class MainWindow
         {
             view.CustomSort = new FileItemComparer(nameof(FileItem.Modified), ListSortDirection.Descending, groupDirectoriesFirst: false);
         }
+
+        // The re-sort regenerates the row containers, detaching the one that
+        // holds keyboard focus, so WPF drops focus out of the grid. (The green
+        // active-pane border stays because it tracks _activeGrid, not focus.)
+        // Both the arrow-key and Vi handlers gate on focus being in the active
+        // listing, so without this the listing goes key-dead after a sort.
+        // Reuse the paste/rename recovery, which re-focuses the selected row
+        // once its container is realized.
+        StartListingFocusRecovery();
     }
 
     private void Columns_Click(object sender, RoutedEventArgs e)
