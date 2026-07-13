@@ -108,6 +108,48 @@ internal static class FsHelpers
         }
     }
 
+    /// <summary>
+    /// Same-name conflict resolution, but instead of Explorer's " (2)"
+    /// counter this appends a date (and if that also collides, a
+    /// date+time) suffix: "name_yyyyMMdd.ext", falling back to
+    /// "name_yyyyMMddHHmmss.ext". If even that collides (multiple pastes
+    /// within the same second), a numbered suffix is appended after the
+    /// timestamp to guarantee uniqueness.
+    /// </summary>
+    public static string NextAvailableDatedPath(string path)
+    {
+        if (!File.Exists(path) && !Directory.Exists(path))
+        {
+            return path;
+        }
+
+        var directory = Path.GetDirectoryName(path) ?? "";
+        var name = Path.GetFileNameWithoutExtension(path);
+        var extension = Path.GetExtension(path);
+        var now = DateTime.Now;
+
+        var dateCandidate = Path.Combine(directory, $"{name}_{now:yyyyMMdd}{extension}");
+        if (!File.Exists(dateCandidate) && !Directory.Exists(dateCandidate))
+        {
+            return dateCandidate;
+        }
+
+        var dateTimeCandidate = Path.Combine(directory, $"{name}_{now:yyyyMMddHHmmss}{extension}");
+        if (!File.Exists(dateTimeCandidate) && !Directory.Exists(dateTimeCandidate))
+        {
+            return dateTimeCandidate;
+        }
+
+        for (var i = 2; ; i++)
+        {
+            var candidate = Path.Combine(directory, $"{name}_{now:yyyyMMddHHmmss} ({i}){extension}");
+            if (!File.Exists(candidate) && !Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
     public static bool SamePath(string left, string right)
     {
         try

@@ -251,12 +251,12 @@ public partial class MainWindow
                 }
                 else
                 {
-                    target = FsHelpers.NextAvailablePath(requestedTarget);
+                    target = FsHelpers.NextAvailableDatedPath(requestedTarget);
                 }
             }
             else
             {
-                target = selfCopy ? FsHelpers.NextAvailablePath(requestedTarget) : requestedTarget;
+                target = selfCopy ? FsHelpers.NextAvailableDatedPath(requestedTarget) : requestedTarget;
             }
 
             try
