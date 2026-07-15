@@ -202,4 +202,72 @@ public partial class MainWindow
             SetStatus(Loc.F("Failed to copy path: {0}", ex.Message));
         }
     }
+
+    /// <summary>
+    /// Copies the selected entries' names — not their paths — to the clipboard as
+    /// text (nameToClipboard, Shift+F9 by default; nameNoExtToClipboard,
+    /// Ctrl+Shift+F9, for the extension-less form). Unlike
+    /// <see cref="PathToClipboard"/>, which copies a single path, EVERY selected
+    /// entry is copied, one per line, so the result can be pasted as a list; the
+    /// ".." parent row is ignored. With nothing selected (or only "..") the
+    /// active pane's current folder name is copied — the name-only counterpart of
+    /// PathToClipboard's current-folder fallback. Line order is selection order
+    /// (DataGrid.SelectedItems), not display order; they differ when the user
+    /// ctrl-clicks out of sequence.
+    /// <paramref name="includeExtension"/> = false strips the extension from
+    /// FILES only: a dot in a folder name is part of the name (e.g. "v1.2.3"),
+    /// not an extension, so folders — and the current-folder fallback — are never
+    /// trimmed.
+    /// </summary>
+    private void NamesToClipboard(bool includeExtension)
+    {
+        var items = ActiveSelectedItems().Where(i => !i.IsParent).ToList();
+
+        var names = items.Count > 0
+            ? items.Select(i => (includeExtension || i.IsDirectory)
+                ? i.Name
+                : System.IO.Path.GetFileNameWithoutExtension(i.Name)).ToList()
+            : [CurrentFolderName()];
+
+        names.RemoveAll(string.IsNullOrEmpty);
+        if (names.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            Clipboard.SetText(string.Join(Environment.NewLine, names));
+            SetStatus(names.Count == 1
+                ? Loc.F("Copied name: {0}", names[0])
+                : Loc.F("Copied {0} name(s)", names.Count));
+        }
+        catch (Exception ex)
+        {
+            // Another process can hold the clipboard open; surface the failure
+            // instead of letting the exception escape the key handler.
+            SetStatus(Loc.F("Failed to copy name: {0}", ex.Message));
+        }
+    }
+
+    /// <summary>
+    /// The active pane's current folder name — the last path segment. Inside an
+    /// archive view that is the inner folder's name, or the archive file's own
+    /// name at the archive root (the "::" path form is not a real file-system
+    /// path, so Path.GetFileName cannot be used on it directly). Empty at a drive
+    /// root, which has no name.
+    /// </summary>
+    private string CurrentFolderName()
+    {
+        var current = GetCurrentPath(_activeGrid);
+        if (ArchivePath.TryParse(current, out var archive, out var inner))
+        {
+            return string.IsNullOrEmpty(inner)
+                ? System.IO.Path.GetFileName(archive)
+                : (inner.TrimEnd('/').Split('/').LastOrDefault() ?? "");
+        }
+
+        return System.IO.Path.GetFileName(current.TrimEnd(
+            System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
+    }
 }

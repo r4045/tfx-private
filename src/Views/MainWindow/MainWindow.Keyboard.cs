@@ -48,6 +48,8 @@ public partial class MainWindow
         ["moveClipboard"] = "ctrl+shift+v",
         ["addBookmark"] = "ctrl+d",
         ["pathToClipboard"] = "f9",
+        ["nameToClipboard"] = "shift+f9",
+        ["nameNoExtToClipboard"] = "ctrl+shift+f9",
         ["openBookmarkDialog"] = "f8",
         ["commandPalette"] = "ctrl+p",
         ["viCheatSheet"] = "shift+f1",
@@ -454,6 +456,29 @@ public partial class MainWindow
             SortActivePaneByModifiedFlat();
             e.Handled = true;
             return;
+        }
+
+        // Name-to-clipboard (Shift+F9 / Ctrl+Shift+F9) is handled here for the
+        // same reason as sortByModifiedFlat above: as the first keystroke after
+        // startup the focused DataGrid consumes the key while establishing its
+        // CurrentCell, so the bubbling Window_KeyDown never runs and the press is
+        // silently dropped. pathToClipboard (F9) still lives in Window_KeyDown —
+        // it carries the same latent risk, but moving it is a separate change.
+        // Skipped inside a text box so an inline rename keeps its own keys.
+        if (!inTextBox)
+        {
+            if (IsShortcut("nameToClipboard", e))
+            {
+                NamesToClipboard(includeExtension: true);
+                e.Handled = true;
+                return;
+            }
+            if (IsShortcut("nameNoExtToClipboard", e))
+            {
+                NamesToClipboard(includeExtension: false);
+                e.Handled = true;
+                return;
+            }
         }
 
         // Alt+Left / Alt+Right / Alt+Up navigation. WPF delivers Alt combos as

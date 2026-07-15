@@ -87,6 +87,8 @@ public partial class MainWindow
             ["moveClipboard"] = (() => true, MoveToClipboardPath),
             ["addBookmark"] = (() => true, AddCurrentFolderBookmarkViaDialog),
             ["pathToClipboard"] = (() => true, PathToClipboard),
+            ["nameToClipboard"] = (() => true, () => NamesToClipboard(includeExtension: true)),
+            ["nameNoExtToClipboard"] = (() => true, () => NamesToClipboard(includeExtension: false)),
             ["openBookmarkDialog"] = (() => true, OpenBookmarkQuickJump),
             ["quit"] = (() => true, Close),
             ["sortByModifiedFlat"] = (() => true, SortActivePaneByModifiedFlat),
