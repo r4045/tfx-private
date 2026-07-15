@@ -304,10 +304,23 @@ Supported action keys:
 | `selectAll` | `ctrl+a` | Select all visible items. |
 | `newTab` | `ctrl+t` | Open a new tab in the active pane. |
 | `closeTab` | `ctrl+w` | Close the active tab. |
+| `toggleTabPin` | `f6` | Pin / unpin the active tab. A pinned tab keeps its position, and navigating to another folder opens a new tab instead of moving it. It can't be closed with `Ctrl+W` or a middle click (a pin marker replaces the × button); unpin it to make it a normal tab again. |
 | `nextTab` | `ctrl+shift+]` | Switch to the next tab. |
 | `prevTab` | `ctrl+shift+[` | Switch to the previous tab. |
 | `toggleTerminal` | `ctrl+j` | Show or hide the built-in terminal pane. (Default avoids `` ctrl+` `` because the `` ` `` key is hard to reach / IME-bound on Japanese keyboards; you can set it to `` ctrl+` `` here if your layout allows.) |
+| `syncCwd` | `ctrl+shift+j` | Set the active file list to the built-in terminal's current folder. Does nothing when no shell is running. Ignored while the terminal pane has focus (the shell keeps the key), so press `Ctrl+1` to return to the file list first. |
 | `quit` | `ctrl+q` | Quit the application (saves the session and tears down the terminal). Ignored while the terminal pane is focused so the shell keeps `Ctrl+Q`; `Alt+F4` always closes the window. |
+| `changeMoveMode` | `f1` | Toggle move mode (Explorer / Vi). Vi mode navigates with letter keys (`j`/`k`/`h`/`l` …) and turns the built-in type-ahead search off; the Name column header and the status-bar mode label turn red. The mode is not persisted — startup is always Explorer. |
+| `openExplorer` | `ctrl+shift+o` | Open the current folder in a new Explorer window (nothing is selected). Inside an archive view it opens the folder that contains the archive file. |
+| `moveClipboard` | `ctrl+shift+v` | Navigate the active pane to a path on the clipboard. A text path wins (the first non-empty line when several were copied); otherwise the first entry of a file-drop list is used. A folder is opened directly; a file opens its parent folder with the file selected. |
+| `addBookmark` | `ctrl+d` | Add the current folder to the bookmarks. Opens a dialog for the group, alias, and path (an existing group name adds into it; a new one creates it). Disabled inside an archive view. |
+| `pathToClipboard` | `f9` | Copy a path to the clipboard as text: the first selected entry's full path (the `..` row is ignored), or the active pane's current folder when nothing is selected. "First" is selection order, not display order. |
+| `nameToClipboard` | `shift+f9` | Copy the selected entries' **names only** (no path) to the clipboard as text. Every selected entry is copied, one per line, in selection order rather than display order; the `..` row is ignored. With nothing selected, the active pane's current folder name is copied. |
+| `nameNoExtToClipboard` | `ctrl+shift+f9` | Same as `nameToClipboard` but **without the extension** (`report.pdf` → `report`). Only files are trimmed: a dot in a folder name is part of the name (e.g. `v1.2.3`), so folders — and the current-folder fallback — are copied as-is. |
+| `openBookmarkDialog` | `f8` | Open the keyboard-driven bookmark quick-jump list. Each entry carries a two-letter mnemonic (group letter + entry letter); typing it navigates the active pane there. Holding Shift on the committing keystroke (the second letter, or Enter) opens it in a new tab instead. Esc cancels. |
+| `commandPalette` | `ctrl+p` | Open the command palette: every built-in action runnable in the current context, plus the `[[commands]]` matching it. Filter by typing, run with Enter. |
+| `viCheatSheet` | `shift+f1` | Show the Vi-mode key cheat sheet (`j`/`k`/`h`/`l`, `g`/`G`, `a`/`n`, `c`/`x`/`p`) in a dialog. Close it with `Enter` or `Esc`. |
+| `sortByModifiedFlat` | `shift+f3` | Sort the active pane by date modified, newest first, with folders and files mixed together — an order a column-header click cannot produce. It sets the same CollectionView sort a header click does, so it survives navigation. |
 
 The `` ` `` (backtick / grave) key token is accepted for `toggleTerminal`; `[` and `]` are accepted for the tab-cycle shortcuts.
 
