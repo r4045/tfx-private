@@ -58,7 +58,7 @@ public partial class MainWindow
             ["moveClipboard"] = ("Navigate to the path on the clipboard", "クリップボードのパスへ移動"),
             ["addBookmark"] = ("Add the current folder to bookmarks", "現在のフォルダーをブックマークに追加"),
             ["pathToClipboard"] = ("Copy the current path to the clipboard", "現在のパスをクリップボードにコピー"),
-            ["openBookmarkDialog"] = ("Jump to a bookmark (quick jump)", "ブックマークへジャンプ（クイック ジャンプ）"),
+            ["openBookmarkDialog"] = ("Jump to a bookmark (quick jump; Shift = open in a new tab)", "ブックマークへジャンプ（クイック ジャンプ。Shift で新しいタブに開く）"),
             ["commandPalette"] = ("Open the command palette", "コマンド パレットを開く"),
             ["viCheatSheet"] = ("Show the Vi-mode key cheat sheet", "Vi モードのキー一覧を表示"),
             ["sortByModifiedFlat"] = ("Sort by date modified, newest first, files and folders mixed", "更新日時順（新しい順、フォルダー/ファイル混在）に並べ替え"),

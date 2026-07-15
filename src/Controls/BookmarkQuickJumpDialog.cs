@@ -14,7 +14,8 @@ namespace Tfx;
 /// first letter narrows to that group; pressing the second navigates the active
 /// pane to that folder and closes the dialog. Esc closes without navigating;
 /// Backspace clears a half-typed key. As an alternative to the mnemonics, the
-/// ↑/↓ keys move a row cursor and Enter opens the highlighted row.
+/// ↑/↓ keys move a row cursor and Enter opens the highlighted row. Holding Shift
+/// on the committing keystroke reports <see cref="OpenInNewTab"/> to the caller.
 ///
 /// The mnemonics are POSITIONAL: they shift when groups or bookmarks are
 /// reordered, or when an entry is inserted/removed ahead of others in
@@ -42,6 +43,16 @@ public sealed class BookmarkQuickJumpDialog : Window
 
     /// <summary>The chosen folder, or null when the dialog was cancelled.</summary>
     public string? SelectedPath { get; private set; }
+
+    /// <summary>
+    /// True when the caller should open <see cref="SelectedPath"/> in a new tab
+    /// instead of navigating the active pane. Set from the Shift state of the
+    /// keystroke that COMMITS the choice — the second mnemonic letter, or Enter.
+    /// The first mnemonic letter's Shift state is deliberately ignored: it only
+    /// narrows the list, and the "a wrong pair restarts from this letter" path in
+    /// OnPreviewKeyDown would otherwise have to carry a stale flag around.
+    /// </summary>
+    public bool OpenInNewTab { get; private set; }
 
     public BookmarkQuickJumpDialog(BookmarkStore store)
     {
@@ -249,6 +260,7 @@ public sealed class BookmarkQuickJumpDialog : Window
                 if (_selectedIndex >= 0 && _selectedIndex < _rows.Count)
                 {
                     SelectedPath = _rows[_selectedIndex].Path;
+                    OpenInNewTab = IsShiftDown(e);
                     DialogResult = true;
                 }
                 e.Handled = true;
@@ -281,6 +293,7 @@ public sealed class BookmarkQuickJumpDialog : Window
         if (_pending.Length == 2 && exact is not null)
         {
             SelectedPath = exact.Path;
+            OpenInNewTab = IsShiftDown(e);
             DialogResult = true;
             return;
         }
@@ -288,6 +301,9 @@ public sealed class BookmarkQuickJumpDialog : Window
         UpdateHighlight();
         UpdateHint();
     }
+
+    private static bool IsShiftDown(KeyEventArgs e) =>
+        e.KeyboardDevice.Modifiers.HasFlag(ModifierKeys.Shift);
 
     private static bool TryLetter(KeyEventArgs e, out char c)
     {
@@ -363,7 +379,7 @@ public sealed class BookmarkQuickJumpDialog : Window
             return;
         }
         _hint.Text = _pending.Length == 0
-            ? Loc.T("2-letter key or ↑↓ Enter to jump · Esc to close")
+            ? Loc.T("2-letter key or ↑↓ Enter to jump · Shift for a new tab · Esc to close")
             : Loc.F("Pending: {0}_ · Esc to close", _pending);
     }
 }

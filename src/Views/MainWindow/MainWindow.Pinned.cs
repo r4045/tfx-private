@@ -279,7 +279,9 @@ public partial class MainWindow
     /// The openBookmarkDialog command (F8 by default): opens a keyboard-driven
     /// quick-jump list of every bookmark. Each entry carries a two-letter
     /// mnemonic (group letter + entry letter); typing it navigates the active
-    /// pane to that folder. Esc cancels.
+    /// pane to that folder. Holding Shift on the keystroke that commits the
+    /// choice (the second mnemonic letter, or Enter) opens the bookmark in a new
+    /// tab instead. Esc cancels.
     /// </summary>
     private void OpenBookmarkQuickJump()
     {
@@ -292,6 +294,15 @@ public partial class MainWindow
         var dialog = new BookmarkQuickJumpDialog(_bookmarks);
         if (dialog.ShowDialog() == true && dialog.SelectedPath is { } target)
         {
+            if (dialog.OpenInNewTab)
+            {
+                // Same path as middle-clicking a sidebar bookmark, including its
+                // de-duplication: a folder already open in this pane focuses its
+                // existing tab rather than opening a second one.
+                OpenNewTab(ActivePane, target);
+                return;
+            }
+
             // Same path as a sidebar click: navigate the active pane, not
             // existence-checked, so an offline share fails through Navigate's
             // normal error path.

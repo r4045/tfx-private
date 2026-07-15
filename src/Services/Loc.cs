@@ -183,7 +183,7 @@ internal static class Loc
         ["Alias"] = "エイリアス",
         ["Path"] = "パス",
         ["Type the 2-letter key to jump · Esc to close"] = "2文字キーで移動 · Esc で閉じる",
-        ["2-letter key or ↑↓ Enter to jump · Esc to close"] = "2文字キー または ↑↓ Enter で移動 · Esc で閉じる",
+        ["2-letter key or ↑↓ Enter to jump · Shift for a new tab · Esc to close"] = "2文字キー または ↑↓ Enter で移動 · Shift で新しいタブ · Esc で閉じる",
         ["Pending: {0}_ · Esc to close"] = "入力中: {0}_ · Esc で閉じる",
 
         // Settings menu + feature list (機能一覧)
