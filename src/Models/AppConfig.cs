@@ -932,6 +932,7 @@ public sealed class AppConfig
         openBookmarkDialog = "f8"
         commandPalette = "ctrl+p"
         viCheatSheet = "shift+f1"
+        featureList = "ctrl+shift+f1"
 
         # Startup layout:
         # [startup]

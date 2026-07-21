@@ -53,6 +53,7 @@ public partial class MainWindow
         ["openBookmarkDialog"] = "f8",
         ["commandPalette"] = "ctrl+p",
         ["viCheatSheet"] = "shift+f1",
+        ["featureList"] = "ctrl+shift+f1",
         ["sortByModifiedFlat"] = "shift+f3",
     };
 
@@ -264,6 +265,11 @@ public partial class MainWindow
         else if (IsShortcut("viCheatSheet", e))
         {
             OpenViCheatSheet();
+            e.Handled = true;
+        }
+        else if (IsShortcut("featureList", e))
+        {
+            OpenShortcutListDialog();
             e.Handled = true;
         }
         else if (IsShortcut("toggleHidden", e))

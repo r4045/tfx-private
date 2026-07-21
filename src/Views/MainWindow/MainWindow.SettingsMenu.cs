@@ -63,6 +63,7 @@ public partial class MainWindow
             ["openBookmarkDialog"] = ("Jump to a bookmark (quick jump; Shift = open in a new tab)", "ブックマークへジャンプ（クイック ジャンプ。Shift で新しいタブに開く）"),
             ["commandPalette"] = ("Open the command palette", "コマンド パレットを開く"),
             ["viCheatSheet"] = ("Show the Vi-mode key cheat sheet", "Vi モードのキー一覧を表示"),
+            ["featureList"] = ("Open the feature list (this dialog)", "機能一覧（このダイアログ）を開く"),
             ["sortByModifiedFlat"] = ("Sort by date modified, newest first, files and folders mixed", "更新日時順（新しい順、フォルダー/ファイル混在）に並べ替え"),
         };
 

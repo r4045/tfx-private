@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -28,6 +29,14 @@ public sealed class ShortcutListDialog : Window
     private static readonly Color MutedFg = Color.FromRgb(143, 155, 168);
     private static readonly Color AccentFg = Color.FromRgb(126, 211, 164);
     private static readonly Color BorderColor = Color.FromRgb(47, 58, 67);
+    private static readonly Color RowSelectedBg = Color.FromArgb(40, 126, 211, 164);
+
+    private enum KeySortState { None, Ascending, Descending }
+
+    private IReadOnlyList<ShortcutListEntry> _entries = Array.Empty<ShortcutListEntry>();
+    private StackPanel _table = null!;
+    private KeySortState _keySortState = KeySortState.None;
+    private ShortcutListEntry? _selectedEntry;
 
     public ShortcutListDialog(IReadOnlyList<ShortcutListEntry> entries)
     {
@@ -54,32 +63,27 @@ public sealed class ShortcutListDialog : Window
         DockPanel.SetDock(hint, Dock.Bottom);
         root.Children.Add(hint);
 
-        var table = new StackPanel();
-        Grid.SetIsSharedSizeScope(table, true);
-        table.Children.Add(BuildHeaderRow());
+        _entries = entries;
+        _table = new StackPanel();
+        Grid.SetIsSharedSizeScope(_table, true);
+        RebuildTable();
 
-        string? currentGroup = null;
-        foreach (var entry in entries)
-        {
-            if (!string.Equals(entry.Group, currentGroup, StringComparison.Ordinal))
-            {
-                currentGroup = entry.Group;
-                table.Children.Add(BuildGroupHeader(entry.Group));
-            }
-            table.Children.Add(BuildDataRow(entry));
-        }
-
-        root.Children.Add(new ScrollViewer
+        var scroller = new ScrollViewer
         {
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             MaxHeight = 600,
-            Content = table,
-        });
+            Content = _table,
+            // Focusable so the list takes keyboard focus on open and the arrow /
+            // PageUp/PageDown keys scroll immediately, without a Tab press first.
+            Focusable = true,
+        };
+        root.Children.Add(scroller);
 
         Content = root;
 
-        Loaded += (_, _) => Focus();
+        // Focus the scroll area (not the Window) so scroll keys work right away.
+        Loaded += (_, _) => scroller.Focus();
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape)
@@ -94,17 +98,60 @@ public sealed class ShortcutListDialog : Window
     {
         var g = new Grid();
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, SharedSizeGroup = "sc_name" });
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, SharedSizeGroup = "sc_desc" });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, SharedSizeGroup = "sc_key" });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, SharedSizeGroup = "sc_desc" });
         return g;
+    }
+
+    private void RebuildTable()
+    {
+        _table.Children.Clear();
+        _table.Children.Add(BuildHeaderRow());
+
+        var groups = new List<(string Group, List<ShortcutListEntry> Items)>();
+        foreach (var entry in _entries)
+        {
+            if (groups.Count == 0 || !string.Equals(groups[^1].Group, entry.Group, StringComparison.Ordinal))
+            {
+                groups.Add((entry.Group, new List<ShortcutListEntry>()));
+            }
+            groups[^1].Items.Add(entry);
+        }
+
+        foreach (var (group, items) in groups)
+        {
+            _table.Children.Add(BuildGroupHeader(group));
+            var ordered = _keySortState == KeySortState.None
+                ? items
+                : SortByKey(items, ascending: _keySortState == KeySortState.Ascending);
+            foreach (var entry in ordered)
+            {
+                _table.Children.Add(BuildDataRow(entry));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sorts a group's rows by Key. Unbound (empty Key) rows always sink to the
+    /// bottom regardless of direction, since an empty string sorting first would
+    /// put them at the top on ascending and bury bound keys on descending.
+    /// </summary>
+    private static List<ShortcutListEntry> SortByKey(List<ShortcutListEntry> items, bool ascending)
+    {
+        var bound = items.Where(e => !string.IsNullOrWhiteSpace(e.Key));
+        var unbound = items.Where(e => string.IsNullOrWhiteSpace(e.Key));
+        bound = ascending
+            ? bound.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase)
+            : bound.OrderByDescending(e => e.Key, StringComparer.OrdinalIgnoreCase);
+        return bound.Concat(unbound).ToList();
     }
 
     private Border BuildHeaderRow()
     {
         var grid = MakeRowGrid();
         grid.Children.Add(HeaderCell(Loc.T("Item"), 0));
-        grid.Children.Add(HeaderCell(Loc.T("Description"), 1));
-        grid.Children.Add(HeaderCell(Loc.T("Key"), 2));
+        grid.Children.Add(BuildKeyHeaderCell(1));
+        grid.Children.Add(HeaderCell(Loc.T("Description"), 2));
         return new Border
         {
             Child = grid,
@@ -113,6 +160,61 @@ public sealed class ShortcutListDialog : Window
             BorderBrush = new SolidColorBrush(BorderColor),
             BorderThickness = new Thickness(0, 0, 0, 1),
         };
+    }
+
+    /// <summary>
+    /// Clickable "Key" header. Three-state cycle on click: unsorted -&gt; ascending
+    /// -&gt; descending -&gt; unsorted. Sorting is scoped to each group (Built-in /
+    /// User commands stay separate); group headers themselves never move.
+    /// </summary>
+    private FrameworkElement BuildKeyHeaderCell(int column)
+    {
+        var arrow = _keySortState switch
+        {
+            KeySortState.Ascending => " \u25b2",
+            KeySortState.Descending => " \u25bc",
+            _ => "",
+        };
+        var isActive = _keySortState != KeySortState.None;
+        var tb = new TextBlock
+        {
+            Text = Loc.T("Key") + arrow,
+            Foreground = new SolidColorBrush(isActive ? AccentFg : MutedFg),
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 24, 0),
+            Cursor = Cursors.Hand,
+        };
+        tb.MouseLeftButtonUp += (_, _) =>
+        {
+            _keySortState = _keySortState switch
+            {
+                KeySortState.None => KeySortState.Ascending,
+                KeySortState.Ascending => KeySortState.Descending,
+                _ => KeySortState.None,
+            };
+            RebuildTable();
+        };
+        Grid.SetColumn(tb, column);
+        return tb;
+    }
+
+    /// <summary>
+    /// Selects a row for visual confirmation only (no side effect). Repaints
+    /// backgrounds in place rather than calling <see cref="RebuildTable"/> so the
+    /// scroll position doesn't jump. Selection is single-row and survives a
+    /// re-sort because <see cref="BuildDataRow"/> reads <see cref="_selectedEntry"/>
+    /// at build time.
+    /// </summary>
+    private void SelectRow(ShortcutListEntry entry)
+    {
+        _selectedEntry = entry;
+        foreach (var child in _table.Children)
+        {
+            if (child is Border { Tag: ShortcutListEntry rowEntry } border)
+            {
+                border.Background = new SolidColorBrush(rowEntry.Equals(entry) ? RowSelectedBg : Colors.Transparent);
+            }
+        }
     }
 
     private Border BuildGroupHeader(string text) => new()
@@ -139,33 +241,38 @@ public sealed class ShortcutListDialog : Window
         Grid.SetColumn(name, 0);
         grid.Children.Add(name);
 
-        var hasDescription = !string.IsNullOrWhiteSpace(entry.Description);
-        var desc = new TextBlock
-        {
-            Text = hasDescription ? entry.Description : Loc.T("No description"),
-            Foreground = hasDescription ? Foreground : new SolidColorBrush(MutedFg),
-            Margin = new Thickness(0, 0, 24, 0),
-            MaxWidth = 560,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-        };
-        Grid.SetColumn(desc, 1);
-        grid.Children.Add(desc);
-
         var hasKey = !string.IsNullOrWhiteSpace(entry.Key);
         var key = new TextBlock
         {
             Text = hasKey ? entry.Key : Loc.T("(unbound)"),
             Foreground = new SolidColorBrush(hasKey ? AccentFg : MutedFg),
             FontWeight = hasKey ? FontWeights.SemiBold : FontWeights.Normal,
+            Margin = new Thickness(0, 0, 24, 0),
         };
-        Grid.SetColumn(key, 2);
+        Grid.SetColumn(key, 1);
         grid.Children.Add(key);
 
-        return new Border
+        var hasDescription = !string.IsNullOrWhiteSpace(entry.Description);
+        var desc = new TextBlock
+        {
+            Text = hasDescription ? entry.Description : Loc.T("No description"),
+            Foreground = hasDescription ? Foreground : new SolidColorBrush(MutedFg),
+            MaxWidth = 560,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        Grid.SetColumn(desc, 2);
+        grid.Children.Add(desc);
+
+        var border = new Border
         {
             Child = grid,
             Padding = new Thickness(6, 3, 6, 3),
+            Tag = entry,
+            Background = new SolidColorBrush(entry.Equals(_selectedEntry) ? RowSelectedBg : Colors.Transparent),
+            Cursor = Cursors.Hand,
         };
+        border.MouseLeftButtonUp += (_, _) => SelectRow(entry);
+        return border;
     }
 
     private static TextBlock HeaderCell(string text, int column)
