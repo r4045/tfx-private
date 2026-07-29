@@ -186,8 +186,19 @@ internal static class Loc
         ["Alias"] = "エイリアス",
         ["Path"] = "パス",
         ["Type the 2-letter key to jump · Esc to close"] = "2文字キーで移動 · Esc で閉じる",
-        ["2-letter key or ↑↓ Enter to jump · Shift for a new tab · Esc to close"] = "2文字キー または ↑↓ Enter で移動 · Shift で新しいタブ · Esc で閉じる",
+        ["2-letter key or ↑↓ Enter to jump · Shift = new tab · Ctrl = edit · Esc to close"] = "2文字キー または ↑↓ Enter で移動 · Shift で新しいタブ · Ctrl で編集 · Esc で閉じる",
         ["Pending: {0}_ · Esc to close"] = "入力中: {0}_ · Esc で閉じる",
+
+        // Bookmark add / edit dialog
+        ["Add bookmark"] = "ブックマークを追加",
+        ["Edit bookmark"] = "ブックマークを編集",
+        ["Group (pick an existing one or type a new name)"] = "グループ（既存から選択、または新しい名前を入力）",
+        ["Alias (leave blank to use the folder name)"] = "エイリアス（空欄ならフォルダー名を使用）",
+        ["Add"] = "追加",
+        ["Save"] = "保存",
+        ["Bookmarked {0}"] = "ブックマークに追加しました: {0}",
+        ["Already bookmarked: {0}"] = "すでにブックマーク済みです: {0}",
+        ["Bookmark updated: {0}"] = "ブックマークを更新しました: {0}",
 
         // Settings menu + feature list (機能一覧)
         ["Settings"] = "設定",

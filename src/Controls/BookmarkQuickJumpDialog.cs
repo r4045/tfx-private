@@ -14,8 +14,16 @@ namespace Tfx;
 /// first letter narrows to that group; pressing the second navigates the active
 /// pane to that folder and closes the dialog. Esc closes without navigating;
 /// Backspace clears a half-typed key. As an alternative to the mnemonics, the
-/// ↑/↓ keys move a row cursor and Enter opens the highlighted row. Holding Shift
-/// on the committing keystroke reports <see cref="OpenInNewTab"/> to the caller.
+/// ↑/↓ keys move a row cursor and Enter opens the highlighted row.
+///
+/// The modifier held on the COMMITTING keystroke picks what happens to the
+/// chosen row: nothing = navigate the active pane, Shift = open in a new tab
+/// (<see cref="OpenInNewTab"/>), Ctrl = edit it instead of going there
+/// (<see cref="RequestEdit"/>). All three work from either commit path, so
+/// Ctrl+Enter and Ctrl+&lt;second letter&gt; are equivalent. Ctrl wins over Shift —
+/// "edit in a new tab" is meaningless. This dialog never edits anything itself;
+/// it reports the choice through <see cref="SelectedGroup"/> /
+/// <see cref="SelectedEntry"/> and the caller acts.
 ///
 /// The mnemonics are POSITIONAL: they shift when groups or bookmarks are
 /// reordered, or when an entry is inserted/removed ahead of others in
@@ -27,6 +35,8 @@ public sealed class BookmarkQuickJumpDialog : Window
     {
         public string Key = "";
         public string Path = "";
+        public BookmarkGroup Group = null!;
+        public BookmarkEntry Entry = null!;
         public Border Container = null!;
     }
 
@@ -43,6 +53,24 @@ public sealed class BookmarkQuickJumpDialog : Window
 
     /// <summary>The chosen folder, or null when the dialog was cancelled.</summary>
     public string? SelectedPath { get; private set; }
+
+    /// <summary>
+    /// The store objects behind <see cref="SelectedPath"/> — the group the chosen
+    /// bookmark lives in and the entry itself, both live references into the
+    /// <see cref="BookmarkStore"/> passed to the constructor. Null when the dialog
+    /// was cancelled. Always set on commit, but only the <see cref="RequestEdit"/>
+    /// path needs them: jumping gets by on the path alone.
+    /// </summary>
+    public BookmarkGroup? SelectedGroup { get; private set; }
+
+    public BookmarkEntry? SelectedEntry { get; private set; }
+
+    /// <summary>
+    /// True when the committing keystroke was held with Ctrl: the caller should
+    /// EDIT <see cref="SelectedEntry"/> rather than navigate anywhere. Checked
+    /// before <see cref="OpenInNewTab"/>, which is forced false in that case.
+    /// </summary>
+    public bool RequestEdit { get; private set; }
 
     /// <summary>
     /// True when the caller should open <see cref="SelectedPath"/> in a new tab
@@ -132,7 +160,7 @@ public sealed class BookmarkQuickJumpDialog : Window
                     ? FolderNameOf(entry.Path)
                     : entry.Label;
 
-                var row = new Row { Key = key, Path = entry.Path };
+                var row = new Row { Key = key, Path = entry.Path, Group = group, Entry = entry };
                 row.Container = BuildDataRow(key, group.Name, alias, entry.Path);
                 yield return (row, row.Container);
             }
@@ -259,9 +287,7 @@ public sealed class BookmarkQuickJumpDialog : Window
             case Key.Enter:
                 if (_selectedIndex >= 0 && _selectedIndex < _rows.Count)
                 {
-                    SelectedPath = _rows[_selectedIndex].Path;
-                    OpenInNewTab = IsShiftDown(e);
-                    DialogResult = true;
+                    Commit(_rows[_selectedIndex], IsShiftDown(e), IsCtrlDown(e));
                 }
                 e.Handled = true;
                 return;
@@ -292,9 +318,7 @@ public sealed class BookmarkQuickJumpDialog : Window
         var exact = _rows.FirstOrDefault(r => r.Key == _pending);
         if (_pending.Length == 2 && exact is not null)
         {
-            SelectedPath = exact.Path;
-            OpenInNewTab = IsShiftDown(e);
-            DialogResult = true;
+            Commit(exact, IsShiftDown(e), IsCtrlDown(e));
             return;
         }
 
@@ -302,8 +326,27 @@ public sealed class BookmarkQuickJumpDialog : Window
         UpdateHint();
     }
 
+    /// <summary>
+    /// Single exit point for a confirmed choice, shared by the Enter key and the
+    /// second mnemonic letter so the two paths can't drift apart. Publishes the
+    /// path AND the store objects behind it, plus the modifier-selected intent.
+    /// Ctrl (edit) suppresses Shift (new tab) rather than combining with it.
+    /// </summary>
+    private void Commit(Row row, bool shift, bool ctrl)
+    {
+        SelectedPath = row.Path;
+        SelectedGroup = row.Group;
+        SelectedEntry = row.Entry;
+        RequestEdit = ctrl;
+        OpenInNewTab = shift && !ctrl;
+        DialogResult = true;
+    }
+
     private static bool IsShiftDown(KeyEventArgs e) =>
         e.KeyboardDevice.Modifiers.HasFlag(ModifierKeys.Shift);
+
+    private static bool IsCtrlDown(KeyEventArgs e) =>
+        e.KeyboardDevice.Modifiers.HasFlag(ModifierKeys.Control);
 
     private static bool TryLetter(KeyEventArgs e, out char c)
     {
@@ -379,7 +422,7 @@ public sealed class BookmarkQuickJumpDialog : Window
             return;
         }
         _hint.Text = _pending.Length == 0
-            ? Loc.T("2-letter key or ↑↓ Enter to jump · Shift for a new tab · Esc to close")
+            ? Loc.T("2-letter key or ↑↓ Enter to jump · Shift = new tab · Ctrl = edit · Esc to close")
             : Loc.F("Pending: {0}_ · Esc to close", _pending);
     }
 }

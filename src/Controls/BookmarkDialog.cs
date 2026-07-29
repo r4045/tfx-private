@@ -6,10 +6,17 @@ using System.Windows.Media;
 namespace Tfx;
 
 /// <summary>
-/// Three-field dialog for adding a bookmark: the group, an alias (display label,
-/// which may be left blank to fall back to the folder name), and the path
-/// (pre-filled with the current folder, editable). Mirrors the look of the
-/// other code-built dialogs (e.g. <see cref="TerminalSettingsDialog"/>).
+/// Three-field dialog for adding OR editing a bookmark: the group, an alias
+/// (display label, which may be left blank to fall back to the folder name),
+/// and the path (pre-filled, editable). Mirrors the look of the other
+/// code-built dialogs (e.g. <see cref="TerminalSettingsDialog"/>).
+///
+/// The two callers differ only in the pre-filled values and the confirm-button
+/// label (<c>okText</c>): the addBookmark command seeds it from the current
+/// folder and says "Add"; the quick-jump dialog's Ctrl-commit (edit) seeds it
+/// from an existing entry and says "Save". All the interpretation — blank alias
+/// means folder name, an unknown group name creates that group — lives in the
+/// caller, not here.
 /// </summary>
 public sealed class BookmarkDialog : Window
 {
@@ -17,7 +24,13 @@ public sealed class BookmarkDialog : Window
     private readonly TextBox _aliasBox;
     private readonly TextBox _pathBox;
 
-    public BookmarkDialog(string title, IEnumerable<string> groups, string defaultGroup, string defaultAlias, string path)
+    public BookmarkDialog(
+        string title,
+        IEnumerable<string> groups,
+        string defaultGroup,
+        string defaultAlias,
+        string path,
+        string? okText = null)
     {
         Title = title;
         Owner = Application.Current.MainWindow;
@@ -80,7 +93,7 @@ public sealed class BookmarkDialog : Window
 
         var ok = new Button
         {
-            Content = Loc.T("Add"),
+            Content = string.IsNullOrWhiteSpace(okText) ? Loc.T("Add") : okText,
             IsDefault = true,
             MinWidth = 76,
             Margin = new Thickness(0, 0, 8, 0)

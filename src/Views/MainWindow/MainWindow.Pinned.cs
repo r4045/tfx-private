@@ -276,12 +276,73 @@ public partial class MainWindow
     }
 
     /// <summary>
+    /// Edits one existing bookmark, reached with Ctrl on the committing keystroke
+    /// in the quick-jump dialog (Ctrl+Enter, or Ctrl + the second mnemonic
+    /// letter). Reopens the three-field dialog pre-filled from
+    /// <paramref name="entry"/>.
+    ///
+    /// Confirming rewrites the entry in place. Changing the group MOVES it to the
+    /// END of the target group (creating the group when the name is new) and
+    /// drops the source group once it empties — the same placement a freshly
+    /// added bookmark gets in <see cref="AddBookmarkEntry"/>, so edit and add
+    /// never disagree about where an entry lands.
+    /// </summary>
+    private void EditBookmarkEntry(BookmarkGroup sourceGroup, BookmarkEntry entry)
+    {
+        var groupNames = _bookmarks.Groups.Select(g => g.Name).ToList();
+        var dialog = new BookmarkDialog(
+            Loc.T("Edit bookmark"), groupNames, sourceGroup.Name, entry.Label, entry.Path, Loc.T("Save"));
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        // A blank field means "leave it alone" rather than "clear it" — except
+        // the alias, where blank is a real value (fall back to the folder name).
+        var newPath = string.IsNullOrWhiteSpace(dialog.Path) ? entry.Path : dialog.Path;
+        var newGroupName = string.IsNullOrWhiteSpace(dialog.Group) ? sourceGroup.Name : dialog.Group;
+
+        var target = _bookmarks.Groups.FirstOrDefault(
+            g => string.Equals(g.Name, newGroupName, StringComparison.OrdinalIgnoreCase));
+
+        // Same one-path-per-group rule adding enforces. The entry being edited is
+        // excluded from the check so re-saving it unchanged (an alias-only edit)
+        // isn't rejected as a duplicate of itself.
+        if (target is not null &&
+            target.Bookmarks.Any(b => !ReferenceEquals(b, entry) && FsHelpers.SamePath(b.Path, newPath)))
+        {
+            SetStatus(Loc.F("Already bookmarked: {0}", newPath));
+            return;
+        }
+
+        entry.Label = dialog.Alias;
+        entry.Path = newPath;
+
+        if (!ReferenceEquals(target, sourceGroup))
+        {
+            sourceGroup.Bookmarks.Remove(entry);
+            if (target is null)
+            {
+                target = new BookmarkGroup { Name = newGroupName };
+                _bookmarks.Groups.Add(target);
+            }
+            target.Bookmarks.Add(entry);
+            _bookmarks.Groups.RemoveAll(g => g.Bookmarks.Count == 0);
+        }
+
+        SaveBookmarks();
+        RenderBookmarks();
+        SetStatus(Loc.F("Bookmark updated: {0}", newPath));
+    }
+
+    /// <summary>
     /// The openBookmarkDialog command (F8 by default): opens a keyboard-driven
     /// quick-jump list of every bookmark. Each entry carries a two-letter
     /// mnemonic (group letter + entry letter); typing it navigates the active
-    /// pane to that folder. Holding Shift on the keystroke that commits the
-    /// choice (the second mnemonic letter, or Enter) opens the bookmark in a new
-    /// tab instead. Esc cancels.
+    /// pane to that folder. The modifier held on the keystroke that commits the
+    /// choice (the second mnemonic letter, or Enter) redirects it: Shift opens
+    /// the bookmark in a new tab, Ctrl edits it instead of going there. Esc
+    /// cancels.
     /// </summary>
     private void OpenBookmarkQuickJump()
     {
@@ -294,6 +355,18 @@ public partial class MainWindow
         var dialog = new BookmarkQuickJumpDialog(_bookmarks);
         if (dialog.ShowDialog() == true && dialog.SelectedPath is { } target)
         {
+            if (dialog.RequestEdit)
+            {
+                // Ctrl: don't navigate anywhere, edit the chosen entry. The
+                // dialog is already closed, so the edit dialog owns the screen
+                // alone rather than stacking on top of the list.
+                if (dialog.SelectedGroup is { } group && dialog.SelectedEntry is { } entry)
+                {
+                    EditBookmarkEntry(group, entry);
+                }
+                return;
+            }
+
             if (dialog.OpenInNewTab)
             {
                 // Same path as middle-clicking a sidebar bookmark, including its

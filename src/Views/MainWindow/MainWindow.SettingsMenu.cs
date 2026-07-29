@@ -60,7 +60,7 @@ public partial class MainWindow
             ["pathToClipboard"] = ("Copy the current path to the clipboard", "現在のパスをクリップボードにコピー"),
             ["nameToClipboard"] = ("Copy the selected names (one per line) to the clipboard; no selection = the current folder name", "選択項目の名前をクリップボードにコピー（1 行 1 件。未選択なら現在のフォルダー名）"),
             ["nameNoExtToClipboard"] = ("Copy the selected names without their extension (folders are left untrimmed)", "選択項目の名前を拡張子なしでコピー（フォルダーはそのまま）"),
-            ["openBookmarkDialog"] = ("Jump to a bookmark (quick jump; Shift = open in a new tab)", "ブックマークへジャンプ（クイック ジャンプ。Shift で新しいタブに開く）"),
+            ["openBookmarkDialog"] = ("Jump to a bookmark (quick jump; Shift = open in a new tab, Ctrl = edit it)", "ブックマークへジャンプ（クイック ジャンプ。Shift で新しいタブ、Ctrl で編集）"),
             ["commandPalette"] = ("Open the command palette", "コマンド パレットを開く"),
             ["viCheatSheet"] = ("Show the Vi-mode key cheat sheet", "Vi モードのキー一覧を表示"),
             ["featureList"] = ("Open the feature list (this dialog)", "機能一覧（このダイアログ）を開く"),
