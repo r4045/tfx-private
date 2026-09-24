@@ -1,0 +1,113 @@
+name: release
+
+# Pushing a version tag (e.g. `git tag v1.9.0 && git push origin v1.9.0`)
+# builds the single-file exe with scripts/build-release.ps1 and publishes it
+# as a GitHub Release. Run it by hand (Actions > release > Run workflow) to
+# (re)build a tag that already exists; an existing Release gets its exe
+# replaced instead of a second Release being created.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build and release (e.g. v1.9.0)'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # Guard against a mistyped tag (e.g. v1.19.0 for v1.9.0): the tag must be
+      # exactly "v" + <Version> from Tfx.csproj, or nothing is released.
+      - name: Check tag matches Tfx.csproj version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content -LiteralPath Tfx.csproj
+          $version = $project.Project.PropertyGroup |
+            ForEach-Object { $_.Version } |
+            Where-Object { $_ } |
+            Select-Object -First 1
+          $version = "$version".Trim()
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            Write-Error "Version is not set in Tfx.csproj"
+            exit 1
+          }
+          if ("v$version" -ne $env:TAG) {
+            Write-Error "Tag '$env:TAG' does not match Tfx.csproj Version '$version' (expected 'v$version')."
+            exit 1
+          }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Test
+        run: dotnet test Tfx.Tests/Tfx.Tests.csproj --configuration Release
+
+      - name: Build release exe
+        shell: pwsh
+        run: ./scripts/build-release.ps1
+
+      - name: Prepare asset and release notes
+        shell: pwsh
+        run: |
+          $name = "tfx-for-windows-$env:VERSION-win-x64"
+          $asset = "artifacts/release/$name.exe"
+          Copy-Item -LiteralPath "artifacts/release/$name/Tfx.exe" -Destination $asset
+          "ASSET=$asset" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+          # Use the "## <version>" section of CHANGELOG.md as the release body
+          # when there is one; GitHub's generated notes are appended either way.
+          $lines = @(Get-Content -LiteralPath CHANGELOG.md -Encoding utf8)
+          $pattern = '^##\s+v?' + [regex]::Escape($env:VERSION) + '\s*$'
+          $start = -1
+          for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match $pattern) { $start = $i; break }
+          }
+          $body = ''
+          if ($start -ge 0) {
+            $end = $lines.Count
+            for ($i = $start + 1; $i -lt $lines.Count; $i++) {
+              if ($lines[$i] -match '^##\s') { $end = $i; break }
+            }
+            if ($end - $start -gt 1) {
+              $body = ($lines[($start + 1)..($end - 1)] -join "`n").Trim()
+            }
+          }
+          Set-Content -LiteralPath release-notes.md -Value $body -Encoding utf8
+
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $null = gh release view $env:TAG 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            # Release already exists (made by hand, or a re-run): replace the exe.
+            gh release upload $env:TAG $env:ASSET --clobber
+          }
+          else {
+            gh release create $env:TAG $env:ASSET `
+              --title $env:TAG `
+              --notes-file release-notes.md `
+              --generate-notes `
+              --verify-tag
+          }
+          exit $LASTEXITCODE
