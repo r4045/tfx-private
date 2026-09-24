@@ -200,6 +200,12 @@ internal static class Loc
         ["Already bookmarked: {0}"] = "すでにブックマーク済みです: {0}",
         ["Bookmark updated: {0}"] = "ブックマークを更新しました: {0}",
 
+        // Bookmark sidebar context menu
+        ["Edit bookmark..."] = "ブックマークを編集...",
+        ["Remove bookmark"] = "ブックマークを削除",
+        ["Open All in New Tabs"] = "すべて新しいタブで開く",
+        ["Remove group"] = "グループを削除",
+
         // Settings menu + feature list (機能一覧)
         ["Settings"] = "設定",
         ["Detail items"] = "詳細項目",

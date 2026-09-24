@@ -205,6 +205,12 @@
             </Setter>
         </Style>
 
+        <!-- Menus don't use the implicit Separator style: MenuBase points each
+             Separator at MenuItem.SeparatorStyleKey, which otherwise falls back
+             to the bright system theme line. Reuse the themed style there too. -->
+        <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="Separator"
+               BasedOn="{StaticResource {x:Type Separator}}" />
+
         <Style x:Key="TfxScrollBarThumb" TargetType="Thumb">
             <Setter Property="Background" Value="{DynamicResource TfxScrollThumb}" />
             <Setter Property="Template">

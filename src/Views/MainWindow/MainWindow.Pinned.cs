@@ -393,14 +393,37 @@ public partial class MainWindow
         item.IsSelected = true;
 
         var menu = new ContextMenu();
-        if (item.Tag is string && item.Items.Count == 0)
+        if (item.Tag is string leafPath && item.Items.Count == 0)
         {
+            // Same action as middle-clicking the leaf: open in a new tab in the
+            // active pane (focusing an existing tab if the folder is already open).
+            var openInNewTab = new MenuItem { Header = Loc.T("Open in New Tab") };
+            openInNewTab.Click += (_, _) => OpenNewTab(ActivePane, leafPath);
+            menu.Items.Add(openInNewTab);
+
+            // Same edit dialog the quick-jump list reaches with Ctrl.
+            var edit = new MenuItem { Header = Loc.T("Edit bookmark...") };
+            edit.Click += (_, _) =>
+            {
+                if (FindBookmarkForLeaf(item) is { } found)
+                {
+                    EditBookmarkEntry(found.Group, found.Entry);
+                }
+            };
+            menu.Items.Add(edit);
+            menu.Items.Add(new Separator());
+
             var remove = new MenuItem { Header = Loc.T("Remove bookmark") };
             remove.Click += (_, _) => RemoveBookmarkLeaf(item);
             menu.Items.Add(remove);
         }
         else if (item.Tag is null && item.Items.Count > 0)
         {
+            var openAll = new MenuItem { Header = Loc.T("Open All in New Tabs") };
+            openAll.Click += (_, _) => OpenBookmarkGroupInNewTabs(item.Header as string);
+            menu.Items.Add(openAll);
+            menu.Items.Add(new Separator());
+
             var removeGroup = new MenuItem { Header = Loc.T("Remove group") };
             removeGroup.Click += (_, _) => RemoveBookmarkGroup(item.Header as string);
             menu.Items.Add(removeGroup);
@@ -444,6 +467,42 @@ public partial class MainWindow
 
         SaveBookmarks();
         RenderBookmarks();
+    }
+
+    /// <summary>
+    /// Resolves a sidebar leaf back to its store group and entry: the parent
+    /// header names the group, the leaf's Tag carries the path. Null when the
+    /// store no longer has it (e.g. edited elsewhere since the last render).
+    /// </summary>
+    private (BookmarkGroup Group, BookmarkEntry Entry)? FindBookmarkForLeaf(TreeViewItem leaf)
+    {
+        if (leaf.Tag is not string path || (leaf.Parent as TreeViewItem)?.Header is not string groupName)
+        {
+            return null;
+        }
+        var group = _bookmarks.Groups.FirstOrDefault(g => string.Equals(g.Name, groupName, StringComparison.Ordinal));
+        var entry = group?.Bookmarks.FirstOrDefault(b => FsHelpers.SamePath(b.Path, path));
+        return group is not null && entry is not null ? (group, entry) : null;
+    }
+
+    /// <summary>
+    /// Opens every bookmark of a group in new tabs of the active pane, in group
+    /// order. Goes through OpenNewTab, so a folder already open in this pane
+    /// reuses its tab instead of duplicating. The last one ends up active.
+    /// </summary>
+    private void OpenBookmarkGroupInNewTabs(string? groupName)
+    {
+        var group = _bookmarks.Groups.FirstOrDefault(g => string.Equals(g.Name, groupName, StringComparison.Ordinal));
+        if (group is null || group.Bookmarks.Count == 0)
+        {
+            return;
+        }
+        var pane = ActivePane;
+        // Snapshot: opening tabs must not be affected by later store edits.
+        foreach (var b in group.Bookmarks.ToList())
+        {
+            OpenNewTab(pane, b.Path);
+        }
     }
 
     private void RemoveBookmarkGroup(string? groupName)
