@@ -255,25 +255,40 @@ public partial class MainWindow
                 return;
             }
             ExecuteDrop(paths, destination, chosen.Value);
-            e.Effects = chosen.Value;
+            e.Effects = ReportedDropEffect(chosen.Value);
             return;
         }
 
         var effect = ResolveDropEffect(e, destination);
         ExecuteDrop(paths, destination, effect);
-        e.Effects = effect;
+        e.Effects = ReportedDropEffect(effect);
     }
 
     /// <summary>
-    /// Shared drop-execution core. Performs the Copy / Move / Link operation
-    /// for each source path, verifies the move actually removed the source
-    /// (catches cross-volume copy + delete failures), surfaces left-behind /
-    /// failed items via the status bar, and reloads both panes.
+    /// The effect handed back to the drag source. The move now finishes in
+    /// the background after Drop returns, and a source that sees
+    /// DROPEFFECT_MOVE may delete the originals itself (the "unoptimized
+    /// move" contract) — possibly before our copy has read them. Report Copy
+    /// instead: the shell operation removes the sources itself once each item
+    /// has been moved, so nothing is lost and nothing is deleted twice.
+    /// </summary>
+    private static DragDropEffects ReportedDropEffect(DragDropEffects performed) =>
+        performed == DragDropEffects.Move ? DragDropEffects.Copy : performed;
+
+    /// <summary>
+    /// Shared drop-execution core. Shortcuts are created immediately; copies
+    /// and moves are planned here (each target gets a free " (2)" name) and
+    /// then run in the background by <see cref="RunTransfersAsync"/>, so the
+    /// Drop handler returns at once instead of holding both tfx and the drag
+    /// source (often Explorer) frozen inside the OLE drop callback.
     /// </summary>
     private void ExecuteDrop(string[] paths, string destination, DragDropEffects effect)
     {
-        var leftBehind = new List<string>();
         var failed = new List<string>();
+        var shellItems = new List<FileTransferItem>();
+        var externalSources = new List<string>();
+        var isMove = effect == DragDropEffects.Move;
+        var useExternal = effect != DragDropEffects.Link && _config.FileOperations.Handles(isMove);
 
         foreach (var source in paths)
         {
@@ -284,44 +299,29 @@ public partial class MainWindow
                     var lnkName = Loc.F("{0} - Shortcut.lnk", Path.GetFileName(source));
                     var lnkPath = FsHelpers.NextAvailablePath(Path.Combine(destination, lnkName));
                     FsHelpers.CreateShortcut(source, lnkPath);
+                    continue;
                 }
-                else
+
+                var requestedTarget = Path.Combine(destination, Path.GetFileName(source));
+                if (isMove && FsHelpers.SamePath(source, requestedTarget))
                 {
-                    var requestedTarget = Path.Combine(destination, Path.GetFileName(source));
-                    if (effect == DragDropEffects.Move && FsHelpers.SamePath(source, requestedTarget))
-                    {
-                        continue;
-                    }
-
-                    var target = FsHelpers.NextAvailablePath(requestedTarget);
-                    if (Directory.Exists(source))
-                    {
-                        if (effect == DragDropEffects.Move)
-                        {
-                            VbFileSystem.MoveDirectory(source, target);
-                        }
-                        else
-                        {
-                            VbFileSystem.CopyDirectory(source, target);
-                        }
-                    }
-                    else if (File.Exists(source))
-                    {
-                        if (effect == DragDropEffects.Move)
-                        {
-                            File.Move(source, target);
-                        }
-                        else
-                        {
-                            File.Copy(source, target);
-                        }
-                    }
-
-                    if (effect == DragDropEffects.Move && (File.Exists(source) || Directory.Exists(source)))
-                    {
-                        leftBehind.Add(Path.GetFileName(source));
-                    }
+                    continue;
                 }
+
+                if (!Directory.Exists(source) && !File.Exists(source))
+                {
+                    failed.Add(Path.GetFileName(source));
+                    continue;
+                }
+
+                if (useExternal)
+                {
+                    externalSources.Add(source);
+                    continue;
+                }
+
+                var target = NextAvailablePathExcluding(requestedTarget, shellItems);
+                shellItems.Add(new FileTransferItem(source, destination, Path.GetFileName(target), isMove, Overwrite: false));
             }
             catch (Exception ex)
             {
@@ -329,17 +329,31 @@ public partial class MainWindow
             }
         }
 
-        Reload(LeftGrid);
-        Reload(RightGrid);
+        if (effect == DragDropEffects.Link)
+        {
+            Reload(LeftGrid);
+            Reload(RightGrid);
+            if (failed.Count > 0)
+            {
+                SetStatus(Loc.F("Failed: {0}", string.Join(", ", failed)));
+            }
+            return;
+        }
 
-        if (leftBehind.Count > 0)
-        {
-            SetStatus(Loc.F("Source remained for: {0}", string.Join(", ", leftBehind)));
-        }
-        else if (failed.Count > 0)
-        {
-            SetStatus(Loc.F("Failed: {0}", string.Join(", ", failed)));
-        }
+        // Select the dropped item in whichever pane shows the destination.
+        var otherGrid = _activeGrid == LeftGrid ? RightGrid : LeftGrid;
+        var destGrid = !FsHelpers.SamePath(GetCurrentPath(_activeGrid), destination) &&
+                       FsHelpers.SamePath(GetCurrentPath(otherGrid), destination)
+            ? otherGrid
+            : _activeGrid;
+
+        _ = RunTransfersAsync(
+            destGrid,
+            destination,
+            shellItems,
+            isMove ? [] : externalSources,
+            isMove ? externalSources : [],
+            failed);
     }
 
     /// <summary>

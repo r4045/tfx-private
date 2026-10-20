@@ -25,6 +25,7 @@ tfx for Windows はユーザーが編集できる設定を次の場所に保存�
 - `[shortcuts]`
 - `[terminal]`
 - `[openWith]`
+- `[fileOperations]`
 
 TOML は小さなサブセットだけを受け付けます。
 
@@ -309,7 +310,7 @@ openTerminal = "ctrl+shift+t"
 | `openItem` | `enter` | 選択項目を開く。 |
 | `newFolder` | `ctrl+shift+n` | フォルダー作成。 |
 | `newFile` | `ctrl+n` | ファイル作成。 |
-| `rename` | `f2` | インライン rename。 |
+| `rename` | `f2` | 名前の変更ダイアログを開く。 |
 | `moveToTrash` | `delete` | Recycle Bin へ移動。 |
 | `compressToZip` | `ctrl+k` | zip 圧縮。 |
 | `extractZip` | `ctrl+shift+e` | zip 展開。 |
@@ -413,6 +414,28 @@ pdf = "C:\\Program Files\\SumatraPDF\\SumatraPDF.exe"
 ```
 
 ディレクトリ、zip ナビゲーション、アーカイブ内部ファイルは既存の tfx 動作を維持します。
+
+### `[fileOperations]`
+
+貼り付けとドラッグ & ドロップのコピー / 移動は、通常は Windows シェル（IFileOperation）で実行します。エクスプローラーと同じ進捗ダイアログ（一時停止 / キャンセル）が出て、エクスプローラーの「元に戻す」も効きます。コピー中も tfx の画面は固まりません。
+
+外部のコピーツールに任せたい場合は、`tool` と `copyArgs` / `moveArgs` を指定します。引数が空の操作は従来どおりシェルで実行します。外部ツールを使うときは、同名ファイルの衝突処理もツール側に任せます（tfx の衝突ダイアログは出ません）。tfx はツールの終了を待ってから一覧を更新し、終了コードが 0 以外なら失敗としてステータスバーに表示します。
+
+| トークン | 展開内容 |
+| --- | --- |
+| `{sources}` | コピー元のパスをすべて、ダブルクォートで囲んでスペース区切りで並べたもの |
+| `{dest}` | コピー先フォルダーのパス（クォートなし、末尾の `\` なし） |
+
+FastCopy の例（`/to=` の末尾に `\` を付けると「フォルダーの中へコピー」になります）:
+
+```toml
+[fileOperations]
+tool = "C:\\Tools\\FastCopy\\FastCopy.exe"
+copyArgs = "/cmd=diff /auto_close {sources} /to=\"{dest}\\\\\""
+moveArgs = "/cmd=move /auto_close {sources} /to=\"{dest}\\\\\""
+```
+
+コピーだけ外部ツールに任せ、移動はシェルのままにする場合は `moveArgs` を省略します。
 
 ### `[[commands]]`
 

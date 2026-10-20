@@ -23,6 +23,7 @@ public sealed class AppConfig
     public Dictionary<string, string> OpenWith { get; } = new(StringComparer.OrdinalIgnoreCase);
     public ExecDropConfig ExecDrop { get; } = new();
     public StartupConfig Startup { get; } = new();
+    public FileOperationsConfig FileOperations { get; } = new();
 
     // New-tab insertion position ([tabs] newTabPosition). "rightmost" (default)
     // appends the new tab to the end of the strip; "afterActive" inserts it
@@ -242,6 +243,28 @@ public sealed class AppConfig
                     break;
                 case "startup":
                     ParseStartup(config, key, value);
+                    break;
+                case "fileoperations":
+                    if (!TryParseString(value, out var fileOpValue))
+                    {
+                        config.Errors.Add($"Invalid [fileOperations] value for {key}: {value}");
+                    }
+                    else if (key.Equals("tool", StringComparison.OrdinalIgnoreCase))
+                    {
+                        config.FileOperations.Tool = fileOpValue;
+                    }
+                    else if (key.Equals("copyArgs", StringComparison.OrdinalIgnoreCase))
+                    {
+                        config.FileOperations.CopyArgs = fileOpValue;
+                    }
+                    else if (key.Equals("moveArgs", StringComparison.OrdinalIgnoreCase))
+                    {
+                        config.FileOperations.MoveArgs = fileOpValue;
+                    }
+                    else
+                    {
+                        config.Errors.Add($"Unknown [fileOperations] key: {key}");
+                    }
                     break;
                 case "tabs":
                     if (key.Equals("newTabPosition", StringComparison.OrdinalIgnoreCase))
@@ -970,6 +993,17 @@ public sealed class AppConfig
         # md = "code"
         # pdf = "C:\\Program Files\\SumatraPDF\\SumatraPDF.exe"
         #
+        # Copy / move (paste and drag-and-drop) normally run through the Windows
+        # shell (Explorer's progress dialog, undo, no UI freeze). To hand them to
+        # an external copier instead, set tool plus copyArgs and/or moveArgs.
+        # An operation whose args are empty keeps using the shell. Tokens:
+        # {sources} = every source path, quoted; {dest} = destination folder
+        # (unquoted, no trailing backslash).
+        # [fileOperations]
+        # tool = "C:\\Tools\\FastCopy\\FastCopy.exe"
+        # copyArgs = "/cmd=diff /auto_close {sources} /to=\"{dest}\\\\\""
+        # moveArgs = "/cmd=move /auto_close {sources} /to=\"{dest}\\\\\""
+        #
         # UI colors ([colors]). Keys are semantic names mapped onto the theme.
         # windowBorder = the 1px outline around the whole window (so the app's
         # edge is visible against a same-colored desktop / adjacent app). Omit
@@ -1024,6 +1058,21 @@ public sealed class AppConfig
         # label = "QNAP share"
         # path = "\\\\qnap-host\\share\\radar"
         """;
+}
+
+/// <summary>
+/// <c>[fileOperations]</c>: optional external copier for paste / drop.
+/// </summary>
+public sealed class FileOperationsConfig
+{
+    public string? Tool { get; set; }
+    public string? CopyArgs { get; set; }
+    public string? MoveArgs { get; set; }
+
+    /// <summary>True when copies (or moves) should go to the external tool.</summary>
+    public bool Handles(bool isMove) =>
+        !string.IsNullOrWhiteSpace(Tool) &&
+        !string.IsNullOrWhiteSpace(isMove ? MoveArgs : CopyArgs);
 }
 
 public sealed class TerminalConfig

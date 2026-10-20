@@ -273,7 +273,7 @@
                         </ItemsControl>
                         <local:PathBar x:Name="LeftPathBar" DockPanel.Dock="Top" Margin="6,6,6,4" PathRequested="LeftPathBar_PathRequested" />
                         <Grid>
-                        <DataGrid x:Name="LeftGrid" ClipboardCopyMode="None" ItemsSource="{Binding LeftItems}" PreviewMouseDown="Listing_PreviewMouseDown" IsReadOnly="True" VirtualizingPanel.VirtualizationMode="Standard" ColumnReordered="FileGrid_ColumnReordered" MouseDoubleClick="Grid_MouseDoubleClick" SelectionChanged="Grid_SelectionChanged" GotFocus="Grid_GotFocus" AllowDrop="True" Drop="Grid_Drop" DragOver="Grid_DragOver" PreviewMouseLeftButtonDown="Grid_PreviewMouseLeftButtonDown" PreviewMouseLeftButtonUp="Listing_PreviewMouseLeftButtonUp" PreviewMouseMove="Grid_PreviewMouseMove" PreviewMouseRightButtonDown="Grid_PreviewMouseRightButtonDown" ContextMenuOpening="Grid_ContextMenuOpening" CellEditEnding="Grid_CellEditEnding" Sorting="Grid_Sorting" CanUserResizeColumns="True">
+                        <DataGrid x:Name="LeftGrid" ClipboardCopyMode="None" ItemsSource="{Binding LeftItems}" PreviewMouseDown="Listing_PreviewMouseDown" IsReadOnly="True" VirtualizingPanel.VirtualizationMode="Standard" ColumnReordered="FileGrid_ColumnReordered" MouseDoubleClick="Grid_MouseDoubleClick" SelectionChanged="Grid_SelectionChanged" GotFocus="Grid_GotFocus" AllowDrop="True" Drop="Grid_Drop" DragOver="Grid_DragOver" PreviewMouseLeftButtonDown="Grid_PreviewMouseLeftButtonDown" PreviewMouseLeftButtonUp="Listing_PreviewMouseLeftButtonUp" PreviewMouseMove="Grid_PreviewMouseMove" PreviewMouseRightButtonDown="Grid_PreviewMouseRightButtonDown" ContextMenuOpening="Grid_ContextMenuOpening" Sorting="Grid_Sorting" CanUserResizeColumns="True">
                             <DataGrid.Columns>
                                 <DataGridTemplateColumn x:Name="LeftNameColumn" Header="Name" Width="280" MinWidth="200" SortMemberPath="Name" CanUserResize="True">
                                     <DataGridTemplateColumn.CellTemplate>
@@ -284,11 +284,6 @@
                                             </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
-                                    <DataGridTemplateColumn.CellEditingTemplate>
-                                        <DataTemplate>
-                                            <TextBox Text="{Binding Name, Mode=OneWay}" VerticalAlignment="Center" Padding="6,2" FontFamily="Consolas, Yu Gothic UI" Loaded="RenameTextBox_Loaded" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellEditingTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridTextColumn x:Name="LeftGitColumn" Header="Git" Binding="{Binding GitStatusText}" SortMemberPath="GitStatusText" Width="30" ElementStyle="{StaticResource CenteredCellText}" CanUserResize="False" />
                                 <DataGridTextColumn x:Name="LeftDateModifiedColumn" Header="Date modified" Binding="{Binding ModifiedText}" SortMemberPath="Modified" Width="155" ElementStyle="{StaticResource ListingCellText}" CanUserResize="False" />
@@ -354,7 +349,7 @@
                         </ItemsControl>
                         <local:PathBar x:Name="RightPathBar" DockPanel.Dock="Top" Margin="6,6,6,4" PathRequested="RightPathBar_PathRequested" />
                         <Grid>
-                        <DataGrid x:Name="RightGrid" ClipboardCopyMode="None" ItemsSource="{Binding RightItems}" PreviewMouseDown="Listing_PreviewMouseDown" IsReadOnly="True" VirtualizingPanel.VirtualizationMode="Standard" ColumnReordered="FileGrid_ColumnReordered" MouseDoubleClick="Grid_MouseDoubleClick" SelectionChanged="Grid_SelectionChanged" GotFocus="Grid_GotFocus" AllowDrop="True" Drop="Grid_Drop" DragOver="Grid_DragOver" PreviewMouseLeftButtonDown="Grid_PreviewMouseLeftButtonDown" PreviewMouseLeftButtonUp="Listing_PreviewMouseLeftButtonUp" PreviewMouseMove="Grid_PreviewMouseMove" PreviewMouseRightButtonDown="Grid_PreviewMouseRightButtonDown" ContextMenuOpening="Grid_ContextMenuOpening" CellEditEnding="Grid_CellEditEnding" Sorting="Grid_Sorting" CanUserResizeColumns="True">
+                        <DataGrid x:Name="RightGrid" ClipboardCopyMode="None" ItemsSource="{Binding RightItems}" PreviewMouseDown="Listing_PreviewMouseDown" IsReadOnly="True" VirtualizingPanel.VirtualizationMode="Standard" ColumnReordered="FileGrid_ColumnReordered" MouseDoubleClick="Grid_MouseDoubleClick" SelectionChanged="Grid_SelectionChanged" GotFocus="Grid_GotFocus" AllowDrop="True" Drop="Grid_Drop" DragOver="Grid_DragOver" PreviewMouseLeftButtonDown="Grid_PreviewMouseLeftButtonDown" PreviewMouseLeftButtonUp="Listing_PreviewMouseLeftButtonUp" PreviewMouseMove="Grid_PreviewMouseMove" PreviewMouseRightButtonDown="Grid_PreviewMouseRightButtonDown" ContextMenuOpening="Grid_ContextMenuOpening" Sorting="Grid_Sorting" CanUserResizeColumns="True">
                             <DataGrid.Columns>
                                 <DataGridTemplateColumn x:Name="RightNameColumn" Header="Name" Width="280" MinWidth="200" SortMemberPath="Name" CanUserResize="True">
                                     <DataGridTemplateColumn.CellTemplate>
@@ -365,11 +360,6 @@
                                             </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
-                                    <DataGridTemplateColumn.CellEditingTemplate>
-                                        <DataTemplate>
-                                            <TextBox Text="{Binding Name, Mode=OneWay}" VerticalAlignment="Center" Padding="6,2" FontFamily="Consolas, Yu Gothic UI" Loaded="RenameTextBox_Loaded" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellEditingTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridTextColumn x:Name="RightGitColumn" Header="Git" Binding="{Binding GitStatusText}" SortMemberPath="GitStatusText" Width="30" ElementStyle="{StaticResource CenteredCellText}" CanUserResize="False" />
                                 <DataGridTextColumn x:Name="RightDateModifiedColumn" Header="Date modified" Binding="{Binding ModifiedText}" SortMemberPath="Modified" Width="155" ElementStyle="{StaticResource ListingCellText}" CanUserResize="False" />

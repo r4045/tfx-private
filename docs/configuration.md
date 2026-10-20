@@ -24,6 +24,7 @@ Session state such as window placement, the last-opened paths, pinned folders, c
 - `[shortcuts]`
 - `[terminal]`
 - `[openWith]`
+- `[fileOperations]`
 
 The loader intentionally accepts a small TOML subset:
 
@@ -294,7 +295,7 @@ Supported action keys:
 | `openItem` | `enter` | Open the selected item. |
 | `newFolder` | `ctrl+shift+n` | Create a folder and start inline name editing. |
 | `newFile` | `ctrl+n` | Create a file and start inline name editing. |
-| `rename` | `f2` | Rename the selected item inline. |
+| `rename` | `f2` | Open the rename dialog for the selected item. |
 | `moveToTrash` | `delete` | Move selected items to the Recycle Bin. |
 | `compressToZip` | `ctrl+k` | Compress selected items to a zip archive. |
 | `extractZip` | `ctrl+shift+e` | Extract selected zip archives. |
@@ -415,6 +416,28 @@ Compound extension keys can be quoted:
 ```
 
 Directories, zip navigation, and archive-internal files keep their existing tfx behavior.
+
+### `[fileOperations]`
+
+Copy / move from paste and drag-and-drop normally run through the Windows shell (IFileOperation): you get Explorer's progress dialog (pause / cancel), Explorer's undo works, and tfx stays responsive during the copy.
+
+To hand them to an external copier instead, set `tool` plus `copyArgs` and/or `moveArgs`. An operation whose args are empty keeps using the shell. With an external tool, name conflicts are left to that tool (tfx's conflict dialog is not shown). tfx waits for the tool to exit, refreshes the panes, and reports a non-zero exit code in the status bar.
+
+| Token | Expands to |
+| --- | --- |
+| `{sources}` | Every source path, double-quoted, separated by spaces |
+| `{dest}` | Destination folder (unquoted, no trailing `\`) |
+
+FastCopy example (a trailing `\` on `/to=` means "copy into this folder"):
+
+```toml
+[fileOperations]
+tool = "C:\\Tools\\FastCopy\\FastCopy.exe"
+copyArgs = "/cmd=diff /auto_close {sources} /to=\"{dest}\\\\\""
+moveArgs = "/cmd=move /auto_close {sources} /to=\"{dest}\\\\\""
+```
+
+Omit `moveArgs` to send only copies to the tool and keep moves in the shell.
 
 ### `[[commands]]`
 

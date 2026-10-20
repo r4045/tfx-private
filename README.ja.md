@@ -24,7 +24,7 @@ tfx for Windows は、キーボード操作を重視した Windows 向けのダ�
 - 左右 2 ペイン、または 1 ペイン表示。各ペインは独立した履歴を持ちます。
 - フォルダーツリー、ピン留めフォルダー、編集可能なアドレスバー、クリック可能な breadcrumb。
 - **Details** と **Icons** の 2 表示モード。
-- New File / New Folder、インライン rename、Windows の修飾キーに沿ったドラッグ & ドロップ、`.lnk` ショートカット作成。
+- New File / New Folder、ダイアログでの名前の変更、Windows の修飾キーに沿ったドラッグ & ドロップ、`.lnk` ショートカット作成。
 - zip 圧縮 / 展開、`.zip` 内部の読み取り専用ブラウズ、zip 内ファイルの open / drag out。
 - Windows 11 風の右クリックメニュー、"Open with..." ダイアログ、ソート可能な列、列の表示 / 順序カスタマイズ（ヘッダーのドラッグで並べ替え＝保存・両ペイン同期）。
 - 画像 / テキストプレビュー、Markdown / HTML / CSV / TSV / JSON のレンダリング表示とソース表示切替。
@@ -49,7 +49,7 @@ tfx for Windows は、キーボード操作を重視した Windows 向けのダ�
 | `Backspace` | 親フォルダーへ移動 |
 | `Alt + Left` / `Alt + Right` | 戻る / 進む |
 | `Alt + Up` / `Backspace` | 親フォルダーへ移動 |
-| `F2` | インライン rename |
+| `F2` | 名前の変更（ダイアログ） |
 | `Delete` | Recycle Bin へ移動 |
 | `Shift + Delete` | 完全削除 |
 | `Ctrl + C` / `Ctrl + X` / `Ctrl + V` | Copy / Cut / Paste |

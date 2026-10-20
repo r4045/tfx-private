@@ -8,9 +8,20 @@ namespace Tfx;
 public sealed class NamePromptDialog : Window
 {
     private readonly TextBox _textBox;
+    private readonly TextBlock _errorBlock;
+    private readonly Func<string, string?>? _validate;
 
-    public NamePromptDialog(string title, string label, string defaultValue)
+    /// <param name="selectStem">
+    /// Select only the part before the last '.' on open (file rename), so
+    /// typing replaces the name but keeps the extension.
+    /// </param>
+    /// <param name="validate">
+    /// Returns an error message to keep the dialog open, or null to accept.
+    /// </param>
+    public NamePromptDialog(string title, string label, string defaultValue,
+        bool selectStem = false, Func<string, string?>? validate = null)
     {
+        _validate = validate;
         Title = title;
         Owner = Application.Current.MainWindow;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -22,6 +33,7 @@ public sealed class NamePromptDialog : Window
         FontFamily = new FontFamily("Consolas, Yu Gothic UI");
 
         var root = new Grid { Margin = new Thickness(16) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -48,6 +60,19 @@ public sealed class NamePromptDialog : Window
         Grid.SetRow(_textBox, 1);
         root.Children.Add(_textBox);
 
+        _errorBlock = new TextBlock
+        {
+            Margin = new Thickness(0, 6, 0, 0),
+            Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113)),
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 340,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Visibility = Visibility.Collapsed
+        };
+        Grid.SetRow(_errorBlock, 2);
+        root.Children.Add(_errorBlock);
+        _textBox.TextChanged += (_, _) => _errorBlock.Visibility = Visibility.Collapsed;
+
         var buttons = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -73,14 +98,22 @@ public sealed class NamePromptDialog : Window
         };
         buttons.Children.Add(cancel);
 
-        Grid.SetRow(buttons, 2);
+        Grid.SetRow(buttons, 3);
         root.Children.Add(buttons);
         Content = root;
 
         Loaded += (_, _) =>
         {
             _textBox.Focus();
-            _textBox.SelectAll();
+            var dot = selectStem ? _textBox.Text.LastIndexOf('.') : -1;
+            if (dot > 0)
+            {
+                _textBox.Select(0, dot);
+            }
+            else
+            {
+                _textBox.SelectAll();
+            }
         };
         PreviewKeyDown += (_, e) =>
         {
@@ -95,6 +128,15 @@ public sealed class NamePromptDialog : Window
 
     private void Accept()
     {
+        var error = _validate?.Invoke(_textBox.Text);
+        if (!string.IsNullOrEmpty(error))
+        {
+            _errorBlock.Text = error;
+            _errorBlock.Visibility = Visibility.Visible;
+            _textBox.Focus();
+            return;
+        }
+
         DialogResult = true;
     }
 }

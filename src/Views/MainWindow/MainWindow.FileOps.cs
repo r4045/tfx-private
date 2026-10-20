@@ -189,17 +189,21 @@ public partial class MainWindow
             return;
         }
 
-        var destination = GetCurrentPath(_activeGrid);
-        var succeeded = 0;
+        var destGrid = _activeGrid;
+        var destination = GetCurrentPath(destGrid);
         var failed = new List<string>();
-        var leftBehind = new List<string>();
-        string? lastWrittenName = null;
+        var shellItems = new List<FileTransferItem>();
+        var externalCopies = new List<string>();
+        var externalMoves = new List<string>();
 
         // When the user ticks "apply to all", the chosen action is reused for
         // every remaining collision instead of prompting again.
         FileConflictChoice? bulkChoice = null;
         var remaining = files.Length;
 
+        // Planning (existence checks and conflict prompts) stays on the UI
+        // thread; the actual copying runs in the background afterwards so a
+        // large or network copy no longer freezes the window.
         foreach (var source in files)
         {
             remaining--;
@@ -213,6 +217,20 @@ public partial class MainWindow
             }
 
             var sourceIsDir = Directory.Exists(source);
+            if (!sourceIsDir && !File.Exists(source))
+            {
+                failed.Add(Path.GetFileName(source));
+                continue;
+            }
+
+            // An external copier configured in [fileOperations] handles its
+            // own conflicts, so hand it the source as-is.
+            if (_config.FileOperations.Handles(isMove))
+            {
+                (isMove ? externalMoves : externalCopies).Add(source);
+                continue;
+            }
+
             // Copy into the same folder: the user means "duplicate". Overwriting
             // an item with itself is impossible, so skip the prompt and always
             // keep both under a numbered name (matches Explorer's behaviour).
@@ -234,8 +252,9 @@ public partial class MainWindow
                         canApplyToAll: remaining > 0);
                     if (dialog.ShowDialog() != true)
                     {
-                        // Cancel aborts the whole paste.
-                        break;
+                        // Cancel aborts the whole paste (nothing has been
+                        // copied yet, so nothing is half done).
+                        return;
                     }
                     choice = dialog.Choice;
                     if (dialog.ApplyToAll)
@@ -259,80 +278,19 @@ public partial class MainWindow
                 target = selfCopy ? FsHelpers.NextAvailableDatedPath(requestedTarget) : requestedTarget;
             }
 
-            try
+            // Two pasted sources resolving to the same new name would make the
+            // shell prompt mid-copy; give the later one a fresh name instead.
+            if (!overwrite && shellItems.Any(i => FsHelpers.SamePath(i.Target, target)))
             {
-                if (sourceIsDir)
-                {
-                    if (isMove)
-                    {
-                        // Replace-on-overwrite: MoveDirectory won't merge over an
-                        // existing folder, so clear the target first.
-                        if (overwrite && Directory.Exists(target))
-                        {
-                            Directory.Delete(target, recursive: true);
-                        }
-                        // VbFileSystem.MoveDirectory falls back to copy + delete
-                        // across volumes, where Directory.Move would throw IOException.
-                        VbFileSystem.MoveDirectory(source, target);
-                    }
-                    else
-                    {
-                        VbFileSystem.CopyDirectory(source, target, overwrite);
-                    }
-                }
-                else if (File.Exists(source))
-                {
-                    if (isMove)
-                    {
-                        File.Move(source, target, overwrite);
-                    }
-                    else
-                    {
-                        File.Copy(source, target, overwrite);
-                    }
-                }
-                else
-                {
-                    failed.Add(Path.GetFileName(source));
-                    continue;
-                }
-
-                // Post-move verification: if a move claimed to succeed but the
-                // source still exists, the underlying copy-then-delete swallowed
-                // a delete failure. Track for user feedback.
-                if (isMove && (File.Exists(source) || Directory.Exists(source)))
-                {
-                    leftBehind.Add(Path.GetFileName(source));
-                }
-                else
-                {
-                    succeeded++;
-                }
-
-                lastWrittenName = Path.GetFileName(target);
+                target = NextAvailablePathExcluding(target, shellItems);
             }
-            catch (Exception ex)
-            {
-                failed.Add($"{Path.GetFileName(source)} ({ex.Message})");
-            }
+
+            shellItems.Add(new FileTransferItem(source, destination, Path.GetFileName(target), isMove, overwrite));
         }
 
         _cutBuffer = [];
 
-        RefreshPanesAfterPaste(lastWrittenName);
-
-        if (failed.Count == 0 && leftBehind.Count == 0)
-        {
-            SetStatus(Loc.F("Pasted {0} item(s)", succeeded));
-        }
-        else if (leftBehind.Count > 0)
-        {
-            SetStatus(Loc.F("Pasted {0}; source remained for: {1}", succeeded, string.Join(", ", leftBehind)));
-        }
-        else
-        {
-            SetStatus(Loc.F("Pasted {0}; failed: {1}", succeeded, string.Join(", ", failed)));
-        }
+        _ = RunTransfersAsync(destGrid, destination, shellItems, externalCopies, externalMoves, failed);
     }
 
     /// <summary>
@@ -460,13 +418,13 @@ public partial class MainWindow
         public List<VirtualFileEntry> Members { get; } = [];
     }
 
-    private void RefreshPanesAfterPaste(string? lastWrittenName)
+    private void RefreshPanesAfterPaste(string? lastWrittenName, DataGrid? destGrid = null, bool recoverFocus = true)
     {
         // Refresh both panes (the source can be the other pane) and select the
         // most-recently written entry in the destination so the paste is visibly
         // reflected even on network shares, where the watcher-driven refresh is
         // disabled and only the periodic poll would otherwise catch up.
-        var destGrid = _activeGrid;
+        destGrid ??= _activeGrid;
         var otherGrid = destGrid == LeftGrid ? RightGrid : LeftGrid;
         Reload(destGrid, lastWrittenName);
         Reload(otherGrid);
@@ -476,7 +434,10 @@ public partial class MainWindow
         // listing until the user clicks back in. Re-claim it (with retries)
         // once the async reload has settled and ApplyPendingSelection has
         // selected the pasted entry.
-        StartListingFocusRecovery();
+        if (recoverFocus)
+        {
+            StartListingFocusRecovery();
+        }
     }
 
     private void MoveSelectionToTrash()
@@ -588,113 +549,150 @@ public partial class MainWindow
         return true;
     }
 
+    private static readonly HashSet<string> ReservedDeviceNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    };
+
+    /// <summary>
+    /// Renames through a modal dialog. This used to be an in-place DataGrid
+    /// cell edit, which kept the grid in an EditItem transaction; a reload,
+    /// sort or auto-refresh landing during that transaction makes WPF throw
+    /// InvalidOperationException and took the whole app down. A dialog never
+    /// puts the grid into edit mode, works in the icon view too, and lets us
+    /// validate before touching the file system.
+    /// </summary>
     private void StartRename(DataGrid grid, FileItem item)
     {
-        var nameColumn = grid == LeftGrid ? LeftNameColumn : RightNameColumn;
-        grid.IsReadOnly = false;
-        grid.CurrentCell = new DataGridCellInfo(item, nameColumn);
-        grid.BeginEdit();
-    }
-
-    private void Grid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
-    {
-        if (sender is not DataGrid grid)
-        {
-            return;
-        }
-
-        Dispatcher.BeginInvoke(() => grid.IsReadOnly = true, DispatcherPriority.Background);
-
-        if (e.EditAction != DataGridEditAction.Commit)
-        {
-            return;
-        }
-
-        if (e.Row.Item is not FileItem item || item.IsParent)
-        {
-            return;
-        }
-
-        var nameColumn = grid == LeftGrid ? LeftNameColumn : RightNameColumn;
-        if (e.Column != nameColumn)
-        {
-            return;
-        }
-
-        var tb = e.EditingElement as TextBox ?? FindVisualChild<TextBox>(e.EditingElement);
-        if (tb is null)
-        {
-            return;
-        }
-
-        var newName = (tb.Text ?? "").Trim();
-        if (string.IsNullOrEmpty(newName) || newName == item.Name)
+        if (item.IsParent)
         {
             return;
         }
 
         var directory = Path.GetDirectoryName(item.FullPath) ?? GetCurrentPath(grid);
-        var target = FsHelpers.NextAvailablePath(Path.Combine(directory, newName));
+        var dialog = new NamePromptDialog(
+            Loc.T("Rename"),
+            item.IsDirectory ? Loc.T("Folder name") : Loc.T("File name"),
+            item.Name,
+            selectStem: !item.IsDirectory,
+            validate: text => ValidateRenameTarget(item, directory, text));
 
+        if (dialog.ShowDialog() != true)
+        {
+            StartListingFocusRecovery();
+            return;
+        }
+
+        var newName = dialog.EnteredText.Trim();
+        if (string.Equals(newName, item.Name, StringComparison.Ordinal))
+        {
+            StartListingFocusRecovery();
+            return;
+        }
+
+        var target = Path.Combine(directory, newName);
         try
         {
-            if (item.IsDirectory)
-            {
-                Directory.Move(item.FullPath, target);
-            }
-            else
-            {
-                File.Move(item.FullPath, target);
-            }
+            MovePath(item.FullPath, target, item.IsDirectory);
         }
         catch (Exception ex)
         {
             SetStatus(Loc.F("Rename failed: {0}", ex.Message));
+            StartListingFocusRecovery();
             return;
         }
 
-        // Restore selection on the renamed entry after the reload so the
-        // user keeps their place (and so arrow keys keep navigating).
-        // The name MUST go through Reload's selectName parameter: Reload
-        // unconditionally overwrites the pane's pending selection name with
-        // its own argument, so a prior SetPendingSelectionName here would be
-        // wiped to null before ApplyPendingSelection ever saw it — which is
-        // why the renamed entry lost both selection and keyboard focus.
-        var renamedName = Path.GetFileName(target);
-
-        Dispatcher.BeginInvoke(() =>
-        {
-            Reload(grid, renamedName);
-            Reload(grid == LeftGrid ? RightGrid : LeftGrid);
-
-            // Renaming rebuilds the listing (and ends a cell edit), both of
-            // which can strand keyboard focus outside the pane; re-claim it
-            // the same way paste does.
-            StartListingFocusRecovery();
-        }, DispatcherPriority.Background);
+        // Reload's selectName re-selects the renamed entry so the user keeps
+        // their place; both panes reload because the other one may show the
+        // same folder.
+        Reload(grid, newName);
+        Reload(grid == LeftGrid ? RightGrid : LeftGrid);
+        StartListingFocusRecovery();
+        SetStatus(Loc.F("Renamed to {0}", newName));
     }
 
-    private void RenameTextBox_Loaded(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Returns an error message for an unusable new name, or null when the
+    /// rename can go ahead. A case-only change ("readme.md" -> "README.md")
+    /// is allowed even though the file system reports the target as existing.
+    /// </summary>
+    private static string? ValidateRenameTarget(FileItem item, string directory, string rawName)
     {
-        if (sender is not TextBox tb)
+        var name = (rawName ?? "").Trim();
+        if (name.Length == 0)
         {
+            return Loc.T("Enter a name.");
+        }
+
+        if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+            name.Contains(Path.DirectorySeparatorChar) ||
+            name.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return Loc.T("A name can't contain any of these characters: \\ / : * ? \" < > |");
+        }
+
+        if (name is "." or ".." || name.EndsWith('.'))
+        {
+            return Loc.T("A name can't end with a period.");
+        }
+
+        var stem = name.Split('.')[0].TrimEnd();
+        if (ReservedDeviceNames.Contains(stem))
+        {
+            return Loc.F("\"{0}\" is a reserved name on Windows.", stem);
+        }
+
+        if (string.Equals(name, item.Name, StringComparison.Ordinal) ||
+            string.Equals(name, item.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var target = Path.Combine(directory, name);
+        if (File.Exists(target) || Directory.Exists(target))
+        {
+            return Loc.F("\"{0}\" already exists in this folder.", name);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Moves a file or folder to <paramref name="target"/> in the same
+    /// folder. A case-only rename of a folder goes through a temporary name
+    /// because some file systems (and older runtimes) reject a move whose
+    /// source and destination differ only in case.
+    /// </summary>
+    private static void MovePath(string source, string target, bool isDirectory)
+    {
+        var caseOnly = string.Equals(source, target, StringComparison.OrdinalIgnoreCase);
+        if (!isDirectory)
+        {
+            File.Move(source, target);
             return;
         }
 
-        tb.Focus();
-        var text = tb.Text ?? "";
-
-        if (tb.DataContext is FileItem item && !item.IsDirectory)
+        if (!caseOnly)
         {
-            var dot = text.LastIndexOf('.');
-            if (dot > 0)
-            {
-                tb.Select(0, dot);
-                return;
-            }
+            Directory.Move(source, target);
+            return;
         }
 
-        tb.SelectAll();
+        var temp = Path.Combine(Path.GetDirectoryName(source)!, ".tfx-rename-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.Move(source, temp);
+        try
+        {
+            Directory.Move(temp, target);
+        }
+        catch
+        {
+            // Put it back under its original name rather than leaving the
+            // temporary name behind.
+            try { Directory.Move(temp, source); } catch { }
+            throw;
+        }
     }
 
     private void DeletePermanently()

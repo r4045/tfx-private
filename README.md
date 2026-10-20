@@ -25,7 +25,7 @@ A keyboard-friendly, dark-themed file explorer for Windows. C# / WPF port of the
 - Folder tree sidebar plus persistent pinned folders
 - Editable address bar with clickable breadcrumb segments and free-text input
 - Two view modes: **Details** (multi-column metadata) and **Icons** (large-icon grid)
-- New File / New Folder, inline rename, drag-and-drop with full Windows modifier-key conventions, shortcut (`.lnk`) creation
+- New File / New Folder, rename dialog, drag-and-drop with full Windows modifier-key conventions, shortcut (`.lnk`) creation
 - Zip compression and extraction from the file pane or context menu, plus read-only browsing inside `.zip` files (open, drag out to other apps)
 - Right-click context menu (Windows 11–style ordering), "Open with..." dialog, sortable columns, customizable column visibility and order
 - Image / text preview pane with rendered Markdown, HTML, CSV / TSV tables, and pretty-printed JSON (toggle between rendered view and source)
@@ -91,7 +91,7 @@ The native title bar is replaced by custom chrome when transparency is enabled. 
 | `Backspace` | Parent folder |
 | `Alt + Left` / `Alt + Right` | Back / Forward |
 | `Alt + Up` / `Backspace` | Parent folder |
-| `F2` | Inline rename (Details mode) |
+| `F2` | Rename (dialog) |
 | `Delete` | Move selection to Recycle Bin |
 | `Shift + Delete` | Permanently delete selection |
 | `Ctrl + C` / `Ctrl + X` / `Ctrl + V` | Copy / Cut / Paste |
@@ -162,7 +162,7 @@ Each pane has its own address bar.
 
 ## View modes
 
-- **Details** - DataGrid with sortable columns: Name, Date modified, Type, Size, Date created, Owner, Attribute. Inline rename (`F2`) is available here. The Size column is right-aligned, text columns keep a small right-side gap, and only the Name column can be resized directly with the mouse. Visible columns and order are configured from the **Columns** popup.
+- **Details** - DataGrid with sortable columns: Name, Date modified, Type, Size, Date created, Owner, Attribute. The Size column is right-aligned, text columns keep a small right-side gap, and only the Name column can be resized directly with the mouse. Visible columns and order are configured from the **Columns** popup.
 - **Icons** - WrapPanel of 32x32 shell icons with file names. Same selection / drag-drop / right-click behaviors as Details mode.
 
 Toggle modes from the toolbar's view-mode button. The choice is remembered.
@@ -433,7 +433,7 @@ The shell thumbnail provider (Stage 5) returns `0x8004B2xx` errors for OneDrive 
 - Text preview detects UTF-8 with/without BOM, UTF-16 with BOM, EUC-JP, ISO-2022-JP (JIS), and Shift_JIS, and shows the detected encoding and newline style.
 - Markdown (`.md`) and HTML (`.html`, `.htm`) previews render via the embedded WebView2 control; a toggle button in the preview header switches between rendered view and source. Requires the Microsoft Edge WebView2 runtime (preinstalled on Windows 11). The preview WebView2 has JavaScript disabled (`IsScriptEnabled=false`), Markdown is rendered with `Markdig.DisableHtml()` to strip inline `<script>` / `javascript:`, and rendered output is wrapped in a strict CSP (`default-src 'none'; img-src data:; style-src 'unsafe-inline'`) so a hostile `.md` / `.html` cannot exfiltrate files or perform network requests.
 - Video previews are not implemented.
-- Inline rename (`F2`) is wired to the active Details view.
+- Rename (`F2`) opens a dialog that validates the name (invalid characters, reserved names, existing items) and supports case-only renames.
 - The DataGrid header drag-reorder is disabled by default style; use the Columns popup to keep both panes in sync.
 - Network locations work if mounted as drives or by typing UNC paths in the address bar.
 - Zip browsing is read-only. Entries previewed or opened are extracted on demand to `%TEMP%\tfx\archive-<id>\…` and the folder is cleaned up when the window closes. Nested zips are not auto-mounted; opening a `.zip` inside an archive extracts it first.
