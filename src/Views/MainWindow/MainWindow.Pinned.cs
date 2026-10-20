@@ -87,9 +87,11 @@ public partial class MainWindow
             };
             foreach (var b in group.Bookmarks)
             {
-                var label = string.IsNullOrWhiteSpace(b.Label)
-                    ? Path.GetFileName(b.Path.TrimEnd('\\', '/'))
-                    : b.Label;
+                var label = !string.IsNullOrWhiteSpace(b.Label)
+                    ? b.Label
+                    : ShellLocation.IsShellLocation(b.Path)
+                        ? ShellLocation.DisplayName(b.Path)
+                        : Path.GetFileName(b.Path.TrimEnd('\\', '/'));
                 if (string.IsNullOrEmpty(label))
                 {
                     label = b.Path;

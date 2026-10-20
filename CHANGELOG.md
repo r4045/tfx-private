@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Recycle Bin button / shell-location bookmarks
+
+- Bookmarks (and the path bar) now accept shell namespace locations such as `shell:RecycleBinFolder`, `shell:Desktop`, or a CLSID path like `::{645FF040-5081-101B-9F08-00AA002F954E}`. Since tfx only lists real folders, selecting one opens it in Windows Explorer instead of navigating the pane (sidebar click / middle-click, quick jump, "Open All in New Tabs", typed path).
+- New toolbar button (trash-can icon, right after Reload) opens the Recycle Bin in Explorer. A shell-location bookmark with no alias is shown as its friendly name (e.g. "Recycle Bin").
+
 ## 0.7.8
 
 ### Folder tree show/hide toggle

@@ -12,6 +12,13 @@ public partial class MainWindow
 {
     private void Navigate(DataGrid grid, string path, bool pushHistory, string? selectName = "..")
     {
+        // Shell namespace locations (shell:RecycleBinFolder etc.) can't be listed
+        // here; hand them to Explorer and leave the pane where it is.
+        if (OpenShellLocationIfAny(path))
+        {
+            return;
+        }
+
         if (!IsNavigablePath(path))
         {
             SetStatus(Loc.F("Folder not found: {0}", path));
@@ -751,6 +758,22 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// When <paramref name="path"/> is a shell location (see <see cref="ShellLocation"/>),
+    /// opens it in Explorer and returns true; otherwise returns false and does nothing.
+    /// </summary>
+    private bool OpenShellLocationIfAny(string path)
+    {
+        if (!ShellLocation.IsShellLocation(path))
+        {
+            return false;
+        }
+        SetStatus(ShellLocation.TryOpen(path, out var error)
+            ? Loc.F("Opened in Explorer: {0}", ShellLocation.DisplayName(path))
+            : error ?? "");
+        return true;
+    }
+
     private static bool IsNavigablePath(string path)
     {
         if (ArchivePath.TryParse(path, out var archive, out _))
@@ -801,4 +824,7 @@ public partial class MainWindow
         Reload(LeftGrid);
         Reload(RightGrid);
     }
+
+    // tfx can't list the Recycle Bin (a shell virtual folder), so open it in Explorer.
+    private void RecycleBin_Click(object sender, RoutedEventArgs e) => OpenShellLocationIfAny(ShellLocation.RecycleBin);
 }

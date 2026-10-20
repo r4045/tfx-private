@@ -52,6 +52,11 @@ public partial class MainWindow
     {
         var expanded = Environment.ExpandEnvironmentVariables(requested);
 
+        if (OpenShellLocationIfAny(expanded))
+        {
+            return;
+        }
+
         try
         {
             expanded = Path.GetFullPath(expanded);

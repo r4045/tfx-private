@@ -323,6 +323,7 @@ public partial class MainWindow : Window
         HiddenButton.ToolTip = Loc.F("Toggle hidden files ({0})", ShortcutText("toggleHidden"));
         TerminalButton.ToolTip = Loc.F("Open Terminal here ({0})", ShortcutText("openTerminal"));
         ReloadButton.ToolTip = Loc.F("Reload ({0})", ShortcutText("reload"));
+        RecycleBinButton.ToolTip = Loc.T("Open Recycle Bin");
         FolderTreeButton.ToolTip = Loc.F("Toggle folder tree ({0})", ShortcutText("toggleFolderTree"));
         PreviewButton.ToolTip = Loc.F("Toggle preview ({0})", ShortcutText("togglePreview"));
         RenderedToggle.ToolTip = Loc.F("Show rendered preview ({0})", ShortcutText("toggleRendered"));

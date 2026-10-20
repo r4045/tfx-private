@@ -181,6 +181,11 @@ public partial class MainWindow
 
     private void OpenNewTab(Pane pane, string path, bool focusExisting = true)
     {
+        if (OpenShellLocationIfAny(path))
+        {
+            return;
+        }
+
         var tabs = TabsOf(pane);
 
         // If the folder is already open in a tab of this pane, focus that tab

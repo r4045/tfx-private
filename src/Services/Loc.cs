@@ -218,6 +218,10 @@ internal static class Loc
         ["Remove bookmark"] = "ブックマークを削除",
         ["Open All in New Tabs"] = "すべて新しいタブで開く",
         ["Remove group"] = "グループを削除",
+        ["Open Recycle Bin"] = "ごみ箱を開く",
+        ["Recycle Bin"] = "ごみ箱",
+        ["Opened in Explorer: {0}"] = "エクスプローラーで開きました: {0}",
+        ["Failed to open Explorer: {0}"] = "エクスプローラーを開けませんでした: {0}",
 
         // Settings menu + feature list (機能一覧)
         ["Settings"] = "設定",

@@ -169,6 +169,10 @@ public sealed class BookmarkQuickJumpDialog : Window
 
     private static string FolderNameOf(string path)
     {
+        if (ShellLocation.IsShellLocation(path))
+        {
+            return ShellLocation.DisplayName(path);
+        }
         var name = Path.GetFileName(path.TrimEnd('\\', '/'));
         return string.IsNullOrEmpty(name) ? path : name;
     }

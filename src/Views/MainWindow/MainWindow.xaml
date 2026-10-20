@@ -76,6 +76,7 @@
                 <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="8,0,0,0">
                     <Button x:Name="TerminalButton" Style="{StaticResource ToolbarButton}" Click="Terminal_Click" ToolTip="Open Terminal here (Ctrl+Shift+T)" Content="&#xE756;" />
                     <Button x:Name="ReloadButton" Style="{StaticResource ToolbarButton}" Click="Reload_Click" ToolTip="Reload (Ctrl+R)" Content="&#xE72C;" />
+                    <Button x:Name="RecycleBinButton" Style="{StaticResource ToolbarButton}" Click="RecycleBin_Click" ToolTip="Open Recycle Bin" Content="&#xE74D;" />
                     <ToggleButton x:Name="FolderTreeButton" Style="{StaticResource ToolbarToggleButton}" Click="FolderTree_Click" ToolTip="Toggle folder tree">
                         <Viewbox Width="15" Height="11" Stretch="Uniform">
                             <Grid Width="15" Height="11">
