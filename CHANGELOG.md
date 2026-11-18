@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### New Folder: "Create and Go" / focus restore
+
+- The New Folder dialog (`Ctrl+Shift+N`) gains a **Create and Go** button (`作成して移動(_G)`), now the default (Enter) button: it creates the folder and opens it in the active pane. **OK** still creates only, and then selects the new folder in the listing.
+- After the dialog closes (OK, Create and Go, or Cancel), keyboard focus returns to the file list instead of being lost.
+
 ### Recycle Bin button / shell-location bookmarks
 
 - Bookmarks (and the path bar) now accept shell namespace locations such as `shell:RecycleBinFolder`, `shell:Desktop`, or a CLSID path like `::{645FF040-5081-101B-9F08-00AA002F954E}`. Since tfx only lists real folders, selecting one opens it in Windows Explorer instead of navigating the pane (sidebar click / middle-click, quick jump, "Open All in New Tabs", typed path).

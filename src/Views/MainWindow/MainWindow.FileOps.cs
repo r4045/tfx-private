@@ -478,23 +478,46 @@ public partial class MainWindow
 
     private void NewFolder()
     {
-        var name = PromptForName(Loc.T("New Folder"), Loc.T("Folder name"), Loc.T("New Folder"));
-        if (!TryNormalizeNewItemName(name, out var itemName))
+        // "Create and Go" is the default (Enter) button: the usual next step
+        // after making a folder is to put something in it. OK only creates.
+        var dialog = new NamePromptDialog(
+            Loc.T("New Folder"), Loc.T("Folder name"), Loc.T("New Folder"),
+            primaryActionText: Loc.T("Create and _Go"));
+        var accepted = dialog.ShowDialog() == true;
+        var openAfterCreate = dialog.PrimaryActionChosen;
+
+        if (!accepted || !TryNormalizeNewItemName(dialog.EnteredText, out var itemName))
         {
+            // The modal dialog took keyboard focus; hand it back to the listing.
+            StartListingFocusRecovery();
             return;
         }
 
         try
         {
-            var path = FsHelpers.NextAvailablePath(Path.Combine(GetCurrentPath(_activeGrid), itemName));
+            var grid = _activeGrid;
+            var path = FsHelpers.NextAvailablePath(Path.Combine(GetCurrentPath(grid), itemName));
             Directory.CreateDirectory(path);
-            Reload(_activeGrid);
+            if (openAfterCreate)
+            {
+                Reload(grid == LeftGrid ? RightGrid : LeftGrid);
+                Navigate(grid, path, true, "..");
+            }
+            else
+            {
+                // Select the new folder so the user can see (and act on) it.
+                Reload(grid, Path.GetFileName(path));
+                Reload(grid == LeftGrid ? RightGrid : LeftGrid);
+            }
+
             SetStatus(Loc.F("Created {0}", path));
         }
         catch (Exception ex)
         {
             SetStatus(Loc.F("New folder failed: {0}", ex.Message));
         }
+
+        StartListingFocusRecovery();
     }
 
     private void NewFile()

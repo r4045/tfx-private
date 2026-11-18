@@ -18,8 +18,14 @@ public sealed class NamePromptDialog : Window
     /// <param name="validate">
     /// Returns an error message to keep the dialog open, or null to accept.
     /// </param>
+    /// <param name="primaryActionText">
+    /// When set, an extra button with this caption is placed before OK and
+    /// becomes the default (Enter) button. <see cref="PrimaryActionChosen"/>
+    /// tells the caller which one accepted the dialog.
+    /// </param>
     public NamePromptDialog(string title, string label, string defaultValue,
-        bool selectStem = false, Func<string, string?>? validate = null)
+        bool selectStem = false, Func<string, string?>? validate = null,
+        string? primaryActionText = null)
     {
         _validate = validate;
         Title = title;
@@ -80,14 +86,36 @@ public sealed class NamePromptDialog : Window
             Margin = new Thickness(0, 14, 0, 0)
         };
 
+        if (!string.IsNullOrEmpty(primaryActionText))
+        {
+            var primary = new Button
+            {
+                Content = primaryActionText,
+                IsDefault = true,
+                MinWidth = 76,
+                Padding = new Thickness(8, 0, 8, 0),
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            primary.Click += (_, _) =>
+            {
+                PrimaryActionChosen = true;
+                Accept();
+            };
+            buttons.Children.Add(primary);
+        }
+
         var ok = new Button
         {
             Content = Loc.T("OK"),
-            IsDefault = true,
+            IsDefault = string.IsNullOrEmpty(primaryActionText),
             MinWidth = 76,
             Margin = new Thickness(0, 0, 8, 0)
         };
-        ok.Click += (_, _) => Accept();
+        ok.Click += (_, _) =>
+        {
+            PrimaryActionChosen = false;
+            Accept();
+        };
         buttons.Children.Add(ok);
 
         var cancel = new Button
@@ -125,6 +153,9 @@ public sealed class NamePromptDialog : Window
     }
 
     public string EnteredText => _textBox.Text;
+
+    /// <summary>True when the dialog was accepted with the primary-action button.</summary>
+    public bool PrimaryActionChosen { get; private set; }
 
     private void Accept()
     {

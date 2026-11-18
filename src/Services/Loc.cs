@@ -80,6 +80,7 @@ internal static class Loc
         ["New Folder"] = "新規フォルダー",
         ["New File"] = "新規ファイル",
         ["Folder name"] = "フォルダー名",
+        ["Create and _Go"] = "作成して移動(_G)",
         ["File name"] = "ファイル名",
         ["New File.txt"] = "新規ファイル.txt",
         ["Open Terminal here"] = "ここでターミナルを開く",
