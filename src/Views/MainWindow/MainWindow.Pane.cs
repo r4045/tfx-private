@@ -48,6 +48,12 @@ public partial class MainWindow
 
     private void UpdateActivePane(DataGrid grid)
     {
+        // The right pane can't be active while split view is off (it is hidden
+        // and can't take focus).
+        if (grid == RightGrid && RightPaneColumn.Width.Value <= 0)
+        {
+            grid = LeftGrid;
+        }
         _activeGrid = grid;
         var focusBrush = (Brush)FindResource("TfxFocusBorder");
         var defaultBrush = (Brush)FindResource("TfxBorder");
@@ -76,8 +82,26 @@ public partial class MainWindow
             // following Shift+Arrow extends from the clicked row, not from a
             // stale keyboard position. Keyboard moves run under _syncingSelection
             // and set the anchor themselves, so they skip this handler.
+            //
+            // Only a user-driven change (focus or a mouse press in this grid)
+            // may switch the active pane. A reload also fires SelectionChanged
+            // (the selected row is removed / the pending selection is applied),
+            // and after a delete that used to hand "active" to the other pane —
+            // even the hidden right pane — leaving keyboard focus with nowhere
+            // to go.
+            var userDriven = grid.IsKeyboardFocusWithin
+                || (grid.IsMouseOver && (Mouse.LeftButton == MouseButtonState.Pressed
+                                         || Mouse.RightButton == MouseButtonState.Pressed));
+            if (userDriven)
+            {
+                UpdateActivePane(grid);
+            }
+            if (grid != _activeGrid)
+            {
+                return;
+            }
+
             _listingAnchorItem = _listingLeadItem = grid.SelectedItem as FileItem;
-            UpdateActivePane(grid);
             SchedulePreviewUpdate(SelectedItems(grid));
             UpdateStatus();
         }

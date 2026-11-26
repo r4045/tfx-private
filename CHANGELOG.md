@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.12.1
+
+### Keyboard focus no longer gets lost after delete / dialogs
+
+- Fixed: after Move to Recycle Bin / Delete permanently, the active pane could silently switch to the other pane — even the hidden right pane when split view is off — because the reload's selection change was treated as a user click. Keyboard focus then had nowhere to go and only a mouse click recovered it. Now only a user-driven selection change (keyboard focus or mouse press in that pane) switches the active pane, and the hidden right pane can never become active.
+- After delete (confirmed or cancelled), focus returns to the file list.
+- General guard: when the window is re-activated (a dialog closed, Alt+Tab back) or focus drops out of the window, and focus ended up nowhere, it is handed back to the active file list.
+- `Esc` now moves focus back to the active file list from anywhere that is not a text box (toolbar button, folder tree, or nowhere). `Ctrl+1` (`focusFilePane`) also works in that state.
+
+## 1.12.0
 
 ### New Folder: "Create and Go" / focus restore
 

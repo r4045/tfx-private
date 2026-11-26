@@ -450,6 +450,8 @@ public partial class MainWindow
 
         if (!Confirm(Loc.F("Move {0} item(s) to Recycle Bin?", items.Length), Loc.T("Move to Recycle Bin")))
         {
+            // The modal dialog took keyboard focus; hand it back to the listing.
+            StartListingFocusRecovery();
             return;
         }
 
@@ -474,6 +476,9 @@ public partial class MainWindow
 
         Reload(LeftGrid);
         Reload(RightGrid);
+
+        // Reload destroys the focused row; re-claim focus once it settles.
+        StartListingFocusRecovery();
     }
 
     private void NewFolder()
@@ -732,6 +737,7 @@ public partial class MainWindow
 
         if (!Confirm(msg, Loc.T("Delete permanently")))
         {
+            StartListingFocusRecovery();
             return;
         }
 
@@ -756,6 +762,9 @@ public partial class MainWindow
 
         Reload(LeftGrid);
         Reload(RightGrid);
+
+        // Reload destroys the focused row; re-claim focus once it settles.
+        StartListingFocusRecovery();
     }
 
     private void CompressSelection()

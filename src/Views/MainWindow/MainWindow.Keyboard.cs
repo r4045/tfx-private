@@ -417,6 +417,25 @@ public partial class MainWindow
             return;
         }
 
+        // Escape is a keyboard way back to the file list from anywhere that
+        // isn't a text box (those use Escape to cancel editing): a toolbar
+        // button, the folder tree, the preview, or nowhere at all after a
+        // dialog closed and focus was not restored.
+        if (e.Key == Key.Escape && Keyboard.Modifiers == ModifierKeys.None
+            && Keyboard.FocusedElement is not TextBox && !IsFocusInActiveListing())
+        {
+            FocusActiveFilePane();
+            e.Handled = true;
+            return;
+        }
+
+        // Focus is nowhere (no element / detached row): reclaim the listing so
+        // this and later keystrokes reach it instead of being swallowed.
+        if (IsKeyboardFocusLost())
+        {
+            FocusPane(ActivePane);
+        }
+
         var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         var inTextBox = Keyboard.FocusedElement is TextBox;
 
@@ -732,7 +751,9 @@ public partial class MainWindow
         {
             return false;
         }
-        if (IsInside(focused, SearchBox) || IsInside(focused, FolderTree) || IsInside(focused, Terminal))
+        // Any text box (path bar edit, search, ...) is a place the user typed
+        // into on purpose; the focus-recovery watchdog must not yank it away.
+        if (focused is TextBox || IsInside(focused, SearchBox) || IsInside(focused, FolderTree) || IsInside(focused, Terminal))
         {
             return true;
         }

@@ -131,6 +131,7 @@ public partial class MainWindow : Window
         _suspendSettingsSave = false;
 
         InitializeAutoRefresh();
+        InitializeFocusGuard();
         InitializeTerminalPane();
 
         // Reload from Navigate(LeftGrid, ...) is async; the ApplyPendingSelection
